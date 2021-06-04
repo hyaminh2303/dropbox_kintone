@@ -11,7 +11,6 @@ kintone.events.on("app.record.index.show", () => {
   const fragment = document.createDocumentFragment();
   const headingEl = document.createElement("h3");
   const messageEl = document.createElement("p");
-  console.log(111111234567)
 
   messageEl.classList.add("plugin-space-message");
   messageEl.textContent = config.message;

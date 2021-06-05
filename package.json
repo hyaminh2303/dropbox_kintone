@@ -12,6 +12,9 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.35",
+    "@fortawesome/free-solid-svg-icons": "^5.15.3",
+    "@fortawesome/react-fontawesome": "^0.1.14",
     "@kintone/rest-api-client": "^1.12.2",
     "core-js": "^3.10.1",
     "dotenv": "^10.0.0",

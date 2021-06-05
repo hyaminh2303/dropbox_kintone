@@ -1,6 +1,5 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom';
-import Dropbox from 'dropbox'
 
 import ConfigSetting from '../view/config/index';
 
@@ -8,11 +7,7 @@ class PluginSettings extends Component {
   constructor(props) {
     super(props)
 
-    this.onCancel = this.onCancel.bind(this);
-    this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.setAppKeyValue = this.setAppKeyValue.bind(this);
-    this.setAccessToken = this.setAccessToken.bind(this);
-    this.setFolderName = this.setFolderName.bind(this);
+    this.setValueInput = this.setValueInput.bind(this);
 
     this.state = {
       appKeyValue: '',
@@ -21,28 +16,14 @@ class PluginSettings extends Component {
     }
   }
 
-  setAppKeyValue(value) {
-    this.setState({appKeyValue: value})
-  }
-  setAccessToken(value) {
-    this.setState({accessToken: value})
-  }
-  setFolderName(value) {
-    this.setState({folderName: value})
-  }
-
-  onCancel() {
-    window.location.href = "../../" + kintone.app.getId() + "/plugin/";
-  }
-
-  handleClickSaveButton() {
-    const { appKeyValue, accessToken, folderName } = this.state;
-
-    kintone.plugin.app.setConfig({
-      appKeyValue: appKeyValue,
-      accessToken: accessToken,
-      folderName: folderName
-    })
+  setValueInput(value: any, inputName: string) {
+    if(inputName === 'appKeyValue') {
+      this.setState({appKeyValue: value})
+    } else if(inputName === 'accessToken') {
+      this.setState({accessToken: value})
+    } else if(inputName === 'folderName') {
+      this.setState({folderName: value})
+    }
   }
 
   UNSAFE_componentWillMount() {
@@ -58,7 +39,6 @@ class PluginSettings extends Component {
   }
 
   render() {
-    const { appKeyValue, accessToken, folderName } = this.state;
     const { pluginId } = this.props;
     const config = kintone.plugin.app.getConfig(pluginId);
 
@@ -66,32 +46,11 @@ class PluginSettings extends Component {
       <React.Fragment>
         <h2>Settings for pluginDropbox</h2>
 
-        <ConfigSetting 
-          appKeyValue={appKeyValue}
-          accessToken={accessToken}
-          folderName={folderName}
-          setAppKeyValue={this.setAppKeyValue}
-          setAccessToken={this.setAccessToken}
-          setFolderName={this.setFolderName}
+        <ConfigSetting
+          state={this.state}
+          setValueInput={this.setValueInput}
           config={config}
         />
-
-        <div className="kintoneplugin-row">
-          <button
-            type="button"
-            className="js-cancel-button kintoneplugin-button-dialog-cancel"
-            onClick={this.onCancel}
-          >
-            Cancel
-          </button>
-
-          <button
-            className="kintoneplugin-button-dialog-ok"
-            onClick={this.handleClickSaveButton}
-          >
-            Save
-          </button>
-        </div>
       </React.Fragment>
     )
   }

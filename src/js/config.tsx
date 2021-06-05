@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
-import ReactDOM from 'react-dom';
+import ReactDOM from 'react-dom'
 
-import ConfigSetting from '../view/config/index';
+import DropboxConfiguration from '../view/config/dropboxConfiguration';
 
 class PluginSettings extends Component {
   constructor(props) {
@@ -46,7 +46,7 @@ class PluginSettings extends Component {
       <React.Fragment>
         <h2>Settings for pluginDropbox</h2>
 
-        <ConfigSetting
+        <DropboxConfiguration
           state={this.state}
           setValueInput={this.setValueInput}
           config={config}

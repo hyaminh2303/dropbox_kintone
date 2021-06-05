@@ -1,8 +1,10 @@
 import React, { Component } from 'react'
-import { Text, Label } from '@kintone/kintone-ui-component';
+import { Text, Label } from '@kintone/kintone-ui-component'
+import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
+
 import './style.sass'
 
-export default class ConfigSetting extends Component {
+export default class DropboxConfiguration extends Component {
   constructor(props) {
     super(props)
 
@@ -12,6 +14,7 @@ export default class ConfigSetting extends Component {
 
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
+    this.dbx = new Dropbox({ accessToken: 'result.accessToken' });
   }
 
   onCancel() {

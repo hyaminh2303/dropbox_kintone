@@ -9,28 +9,67 @@ import './style.sass'
 export default class RecordDetail extends Component {
   constructor(props) {
     super(props)
-    this.dbx = new Dropbox({ accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB' })
-    this.state = {
-      dropboxEntries: [],
+    this.onClickDropboxFolder = this.onClickDropboxFolder.bind(this)
+    this.navigateByBreadcrumb = this.navigateByBreadcrumb.bind(this)
 
+    this.dbx = new Dropbox({
+      accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
+    })
+
+    // TODO: Need to be updated by plugin config
+    const rootPath = props.folderName || '/DropboxForKintone' + `/${props.event.record['会社名'].value}[${props.event.record['$id'].value}]`
+
+    this.state = {
+      currentPathLower: rootPath,
+      currentPathDisplay: rootPath,
+      dropboxEntries: []
     }
   }
 
   UNSAFE_componentWillMount() {
-    this.dbx.filesListFolder({ path: '' }).then((response) => {
+    this.getDropboxEntries(this.state.currentPathLower)
+  }
+
+  onClickDropboxFolder(dropboxEntry: any) {
+    this.setState({
+      currentPathDisplay: dropboxEntry.path_display,
+      currentPathLower: dropboxEntry.path_lower
+    })
+
+    this.getDropboxEntries(dropboxEntry.path_lower)
+  }
+
+  navigateByBreadcrumb(currentPathDisplay, currentPathLower) {
+    this.setState({
+      currentPathDisplay: currentPathDisplay,
+      currentPathLower: currentPathLower
+    })
+    this.getDropboxEntries(currentPathLower)
+  }
+
+
+  getDropboxEntries(rootPath: string) {
+    this.dbx.filesListFolder({ path: rootPath }).then((response) => {
       const { result: { entries } } = response
       this.setState({ dropboxEntries: entries })
     })
   }
 
   render() {
-    const { dropboxEntries } = this.state
-    console.log(dropboxEntries)
+    const {
+      dropboxEntries, currentPathDisplay, currentPathLower
+    } = this.state
+
     return(
       <div className="record-detail-wrapper row-gaia clearFix-cybozu config-position position-relative">
         <div className="dropbox-wraper">
           <div className="dropbox-detail-border">
-            <BreadcrumbNavigation />
+
+            <BreadcrumbNavigation
+              currentPathDisplay={currentPathDisplay}
+              currentPathLower={currentPathLower}
+              navigateByBreadcrumb={this.navigateByBreadcrumb}
+            />
 
             <div>
               <button className="option-show">
@@ -38,7 +77,19 @@ export default class RecordDetail extends Component {
               </button>
             </div>
             <div className="dropbox-detail-border">
-              asdadsdas
+              {
+                dropboxEntries.map((dropboxEntry, index) => {
+                  return(
+                    <div
+                      className="aa"
+                      key={index}
+                      onDoubleClick={() => this.onClickDropboxFolder(dropboxEntry)}
+                    >
+                      { dropboxEntry.name }
+                    </div>
+                  )
+                })
+              }
             </div>
           </div>
         </div>

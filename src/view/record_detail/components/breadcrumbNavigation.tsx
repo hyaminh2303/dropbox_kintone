@@ -7,25 +7,42 @@ export default class BreadcrumbNavigation extends Component {
     super(props)
   }
 
-
-
   render() {
+    const {
+      currentPathDisplay, currentPathLower, navigateByBreadcrumb
+    } = this.props
+
+    const currentPathLowerItems = currentPathLower.split('/').filter((i) => !!i)
+    const currentPathDisplayItems = currentPathDisplay.split('/').filter((i) => !!i)
+    let pathLowerItems = []
+    let pathDisplayItems = []
+
     return(
       <div className="dropbox-breadcrumb">
         <ul className="breadcrumb">
-          <li>
-            DropboxForKintone
-          </li>
-          <li>
-              <a href="#">pw3soydupwhl[68]</a>
-              <a className="btn-edit-folder-name" onClick={() => alert(111)}>
-                edit
-              </a>
-          </li>
+          {
+            currentPathLowerItems.map((item, index) => {
+              let name = currentPathDisplayItems[index]
+              pathLowerItems.push(item)
+              pathDisplayItems.push(name)
+              let pathLower = '/' + pathLowerItems.join('/')
+              let pathDisplay = '/' +  pathDisplayItems.join('/')
 
-          <li>
-          53
-          </li>
+              return(
+                <li key={index}>
+                  {
+                    index == 0 ? (
+                      name
+                    ) : (
+                      <a onClick={() => {navigateByBreadcrumb(pathDisplay, pathLower)}}>
+                        {name}
+                      </a>
+                    )
+                  }
+                </li>
+              )
+            })
+          }
         </ul>
       </div>
     )

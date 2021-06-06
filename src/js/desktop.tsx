@@ -30,10 +30,10 @@ import RecordDetail from '../view/record_detail';
 
     render() {
       const { config, pluginId } = this.props
-      const { currentComponent } = this.state
+      const { currentComponent, event } = this.state
 
       if (currentComponent == this.recordDetailComponentName) {
-        return(<RecordDetail pluginId={pluginId} config={config} />)
+        return(<RecordDetail pluginId={pluginId} config={config} event={event} />)
       } else {
         return(<div />)
       }

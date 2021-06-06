@@ -1,10 +1,12 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus } from '@fortawesome/free-solid-svg-icons'
-import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
+import { faUpload, faPlus } from '@fortawesome/free-solid-svg-icons'
+import { Dropbox, Error, files } from 'dropbox'
 
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
+import UploadFileDialog from './components/uploadFileDialog'
+import FolderFormDialog from './components/folderFormDialog'
 import './style.sass'
 
 
@@ -14,11 +16,13 @@ export default class RecordDetail extends Component {
     this.onClickDropboxFolder = this.onClickDropboxFolder.bind(this)
     this.navigateByBreadcrumb = this.navigateByBreadcrumb.bind(this)
     this.onClickUploadButton = this.onClickUploadButton.bind(this)
-    this.onChangeFile = this.onChangeFile.bind(this)
     this.onCopyLink = this.onCopyLink.bind(this)
     this.onDeleteFile = this.onDeleteFile.bind(this)
     this.onPreviewFile = this.onPreviewFile.bind(this)
     this.onCloseDialogPreview = this.onCloseDialogPreview.bind(this)
+    this.onCloseDialogUpload = this.onCloseDialogUpload.bind(this)
+    this.uploadFile = this.uploadFile.bind(this)
+    this.onCreateNewFolder = this.onCreateNewFolder.bind(this)
 
     this.dbx = new Dropbox({
       accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
@@ -31,8 +35,9 @@ export default class RecordDetail extends Component {
       currentPathLower: rootPath,
       currentPathDisplay: rootPath,
       dropboxEntries: [],
-      filePreviewBlob: null,
-      isDialogVisible: false
+      isDialogPreviewVisible: false,
+      isDialogUploadVisible: false,
+      isDialogFolderFormVisible: false
     }
   }
 
@@ -65,14 +70,13 @@ export default class RecordDetail extends Component {
   }
 
   onClickUploadButton() {
-    this.uploadFileInput.click()
+    this.setState({isDialogUploadVisible: true})
   }
 
   onCopyLink(dropboxEntry) {
     this.dbx.sharingCreateSharedLink({
       path: dropboxEntry.path_lower
     }).then((response) => {
-      console.log(response)
       navigator.clipboard.writeText(response.result.url)
       console.log('copied dropbox url')
     })
@@ -89,33 +93,31 @@ export default class RecordDetail extends Component {
 
   onPreviewFile(dropboxEntry) {
     console.log(dropboxEntry)
-    this.setState({isDialogVisible: true})
-
-    this.dbx.filesGetPreview({
-      path: dropboxEntry.path_lower,
-      rev: dropboxEntry.rev
-    }).then((response) => {
-      const fileBlob = response.result.fileBlob
-      this.setState({filePreviewBlob: fileBlob})
-    })
+    this.setState({isDialogPreviewVisible: true})
   }
 
   onCloseDialogPreview() {
     this.setState({
-      filePreviewBlob: null,
-      isDialogVisible: false
+      isDialogPreviewVisible: false
     })
   }
 
-  async onChangeFile(event) {
-    event.stopPropagation()
-    event.preventDefault()
-    const file = event.target.files[0]
+  onCloseDialogUpload() {
+    this.setState({
+      isDialogUploadVisible: false
+    })
+  }
 
+  onCreateNewFolder() {
+    this.setState({isDialogFolderFormVisible: true})
+  }
+
+  uploadFile(file) {
     this.dbx.filesUpload({
       contents: file,
       path: `${this.state.currentPathLower}/${file.name}`
     }).then((result) => {
+      this.onCloseDialogUpload()
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -123,7 +125,7 @@ export default class RecordDetail extends Component {
   render() {
     const {
       dropboxEntries, currentPathDisplay, currentPathLower,
-      isDialogVisible, filePreviewBlob
+      isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible
     } = this.state
 
     return(
@@ -137,32 +139,32 @@ export default class RecordDetail extends Component {
               navigateByBreadcrumb={this.navigateByBreadcrumb}
             />
 
-            <div>
-              <button className="option-show" onClick={this.onClickUploadButton}>
+            <div className="btn-menu-wrapper">
+              <button className="btn-upload-file" onClick={this.onClickUploadButton}>
+                <FontAwesomeIcon icon={faUpload} />
+                <span> Upload File </span>
+              </button>
+
+              <button className="btn-create-folder" onClick={this.onCreateNewFolder}>
                 <FontAwesomeIcon icon={faPlus} />
+                <span> Create Folder </span>
               </button>
             </div>
-
-            <input id="upload-file-input"
-              type="file"
-              style={{display: 'none'}}
-              ref={(ref) => this.uploadFileInput = ref}
-              onChange={this.onChangeFile}
-            />
 
             <div className="dropbox-detail-border">
               {
                 dropboxEntries.map((dropboxEntry, index) => {
                   return(
                     <div
+                      className="dropbox-item-wrapper"
                       key={index}
                       onDoubleClick={() => this.onClickDropboxFolder(dropboxEntry)}
                     >
-                      <div>
+                      <div className="dropbox-item-name">
                         { dropboxEntry.name }
                       </div>
 
-                      <div>
+                      <div className="dropbox-item-actions">
                         {
                           dropboxEntry['.tag'] == 'file' && (
                             <button onClick={() => this.onCopyLink(dropboxEntry)}>
@@ -178,7 +180,7 @@ export default class RecordDetail extends Component {
                         {
                           dropboxEntry['.tag'] == 'file' && (
                             <button onClick={() => this.onPreviewFile(dropboxEntry)}>
-                              Preview File
+                              Preview
                             </button>
                           )
                         }
@@ -190,11 +192,26 @@ export default class RecordDetail extends Component {
             </div>
           </div>
         </div>
+
         <div className="preview-dialog-wrapper">
           <DropboxPreviewDialog
-            filePreviewBlob={filePreviewBlob}
-            isDialogVisible={isDialogVisible}
+            isVisible={isDialogPreviewVisible}
             onCloseDialogPreview={this.onCloseDialogPreview}
+          />
+        </div>
+
+        <div className="file-upload-dialog-wrapper">
+          <UploadFileDialog
+            isVisible={isDialogUploadVisible}
+            uploadFile={this.uploadFile}
+            onCloseDialogUpload={this.onCloseDialogUpload}
+          />
+        </div>
+
+        <div className="folder-form-dialog-wrapper">
+          <FolderFormDialog
+            isVisible={isDialogFolderFormVisible}
+            onCloseDialog={() => this.setState({isDialogFolderFormVisible: false})}
           />
         </div>
       </div>

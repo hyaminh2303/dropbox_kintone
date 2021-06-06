@@ -28,9 +28,31 @@
       color: black
       content: "/\00a0"
 
+  .btn-menu-wrapper
+    text-align: right
+    margin-bottom: 15px
+
+  .btn-upload-file, .btn-create-folder
+    margin-left: 5px
 
   .preview-dialog-wrapper
     .dropbox-embed-container
       height: 500px !important
     .kuc-dialog-wrapper, .kuc-dialog-header, .kuc-dialog-body, .kuc-dialog-footer
       min-width: 1000px
+
+  .dropbox-item-wrapper
+    display: flex
+    flex-direction: row
+    justify-content: space-between
+
+    .dropbox-item-name
+      flex-grow: 1
+
+    .dropbox-item-name, .dropbox-item-actions
+      margin-bottom: 15px
+      cursor: pointer
+
+    .dropbox-item-actions
+      button
+        margin-left: 5px

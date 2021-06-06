@@ -22,7 +22,8 @@ export default class RecordDetail extends Component {
     this.onCloseDialogPreview = this.onCloseDialogPreview.bind(this)
     this.onCloseDialogUpload = this.onCloseDialogUpload.bind(this)
     this.uploadFile = this.uploadFile.bind(this)
-    this.onCreateNewFolder = this.onCreateNewFolder.bind(this)
+    this.showCreateNewFolderForm = this.showCreateNewFolderForm.bind(this)
+    this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this)
 
     this.dbx = new Dropbox({
       accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
@@ -108,7 +109,7 @@ export default class RecordDetail extends Component {
     })
   }
 
-  onCreateNewFolder() {
+  showCreateNewFolderForm() {
     this.setState({isDialogFolderFormVisible: true})
   }
 
@@ -118,6 +119,16 @@ export default class RecordDetail extends Component {
       path: `${this.state.currentPathLower}/${file.name}`
     }).then((result) => {
       this.onCloseDialogUpload()
+      this.getDropboxEntries(this.state.currentPathLower)
+    })
+  }
+
+  createOrUpdateFolder(name) {
+    this.dbx.filesCreateFolder({
+      path: `${this.state.currentPathLower}/${name}`,
+      autorename: true
+    }).then((result) => {
+      this.setState({isDialogFolderFormVisible: false})
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -145,7 +156,7 @@ export default class RecordDetail extends Component {
                 <span> Upload File </span>
               </button>
 
-              <button className="btn-create-folder" onClick={this.onCreateNewFolder}>
+              <button className="btn-create-folder" onClick={this.showCreateNewFolderForm}>
                 <FontAwesomeIcon icon={faPlus} />
                 <span> Create Folder </span>
               </button>
@@ -211,6 +222,7 @@ export default class RecordDetail extends Component {
         <div className="folder-form-dialog-wrapper">
           <FolderFormDialog
             isVisible={isDialogFolderFormVisible}
+            createOrUpdateFolder={this.createOrUpdateFolder}
             onCloseDialog={() => this.setState({isDialogFolderFormVisible: false})}
           />
         </div>

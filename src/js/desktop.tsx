@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
+import {Helmet} from "react-helmet";
 
 import RecordDetail from '../view/record_detail';
 
@@ -33,7 +34,15 @@ import RecordDetail from '../view/record_detail';
       const { currentComponent, event } = this.state
 
       if (currentComponent == this.recordDetailComponentName) {
-        return(<RecordDetail pluginId={pluginId} config={config} event={event} />)
+        return(
+          <React.Fragment>
+            <Helmet>
+                <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="ofadvw0r9advmky"></script>
+            </Helmet>
+
+            <RecordDetail pluginId={pluginId} config={config} event={event} />
+          </React.Fragment>
+        )
       } else {
         return(<div />)
       }

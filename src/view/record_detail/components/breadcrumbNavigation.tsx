@@ -1,4 +1,5 @@
 import React, { Component } from 'react'
+import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 
 import './style.sass'
 

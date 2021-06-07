@@ -88,7 +88,6 @@ export default class RecordDetail extends Component {
     this.dbx.filesDelete({
       path: dropboxEntry.path_lower
     }).then((response) => {
-      console.log(response)
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -175,9 +174,8 @@ export default class RecordDetail extends Component {
                     <div
                       className="dropbox-item-wrapper"
                       key={index}
-                      onDoubleClick={() => this.onClickDropboxFolder(dropboxEntry)}
                     >
-                      <div className="dropbox-item-name">
+                      <div className="dropbox-item-name" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
                         { dropboxEntry.name }
                       </div>
 

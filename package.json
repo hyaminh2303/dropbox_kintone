@@ -12,14 +12,21 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^1.2.35",
+    "@fortawesome/free-solid-svg-icons": "^5.15.3",
+    "@fortawesome/react-fontawesome": "^0.1.14",
     "@kintone/kintone-ui-component": "^0.8.0",
     "@kintone/rest-api-client": "^1.12.2",
+    "@material-ui/core": "^4.11.4",
+    "@material-ui/icons": "^4.11.2",
     "core-js": "^3.10.1",
     "dotenv": "^10.0.0",
     "dropbox": "^9.8.6",
+    "material-ui-dropzone": "^3.5.0",
     "node-polyfill-webpack-plugin": "^1.1.2",
     "react": "^17.0.2",
-    "react-dom": "^17.0.2"
+    "react-dom": "^17.0.2",
+    "react-helmet": "^6.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.13.15",

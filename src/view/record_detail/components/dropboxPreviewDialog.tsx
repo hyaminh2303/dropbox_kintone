@@ -7,27 +7,40 @@ export default class DropboxPreviewDialog extends Component {
     this.renderContent = this.renderContent.bind(this)
   }
 
-  renderContent() {
+  renderContent(previewPath) {
     return(
-      <a
-        href="https://www.dropbox.com/s/hklvfik9s9e7jp2/Untitled.docx?dl=0"
-        className="dropbox-embed"
-        data-width="100%"
-      ></a>
+        <a
+          href={previewPath}
+          className="dropbox-embed"
+          id="preview-file"
+          data-width="100%"
+        ></a>
     )
+  }
 
+  UNSAFE_componentWillReceiveProps(nextProps) {
+    var options = {
+      // Shared link to Dropbox file
+      link: nextProps.previewPath,
+      file: {
+        // Sets the zoom mode for embedded files. Defaults to 'best'.
+        zoom: "best" // or "fit"
+      }
+    }
+    Dropbox.embed(options, document.getElementById('preview-file'));
   }
 
   render() {
     const {
       isVisible,
-      onCloseDialogPreview
+      onCloseDialogPreview,
+      previewPath
     } = this.props
 
     return(
       <Dialog
         showCloseButton={true}
-        content={this.renderContent()}
+        content={this.renderContent(previewPath)}
         isVisible={isVisible}
         onClose={onCloseDialogPreview}
       />

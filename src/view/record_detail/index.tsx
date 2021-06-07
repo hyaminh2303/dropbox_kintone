@@ -18,7 +18,7 @@ export default class RecordDetail extends Component {
     this.onClickUploadButton = this.onClickUploadButton.bind(this)
     this.onCopyLink = this.onCopyLink.bind(this)
     this.onDeleteFile = this.onDeleteFile.bind(this)
-    this.onPreviewFile = this.onPreviewFile.bind(this)
+    this.onOpenDialogPreview = this.onOpenDialogPreview.bind(this)
     this.onCloseDialogPreview = this.onCloseDialogPreview.bind(this)
     this.onCloseDialogUpload = this.onCloseDialogUpload.bind(this)
     this.uploadFile = this.uploadFile.bind(this)
@@ -38,7 +38,8 @@ export default class RecordDetail extends Component {
       dropboxEntries: [],
       isDialogPreviewVisible: false,
       isDialogUploadVisible: false,
-      isDialogFolderFormVisible: false
+      isDialogFolderFormVisible: false,
+      previewPath: null,
     }
   }
 
@@ -92,9 +93,13 @@ export default class RecordDetail extends Component {
     })
   }
 
-  onPreviewFile(dropboxEntry) {
-    console.log(dropboxEntry)
+  onOpenDialogPreview(dropboxEntry) {
     this.setState({isDialogPreviewVisible: true})
+    this.dbx.sharingCreateSharedLink({
+      path: dropboxEntry.path_lower
+    }).then((response) => {
+      this.setState({previewPath: response.result.url})
+    })
   }
 
   onCloseDialogPreview() {
@@ -136,7 +141,8 @@ export default class RecordDetail extends Component {
   render() {
     const {
       dropboxEntries, currentPathDisplay, currentPathLower,
-      isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible
+      isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible,
+      previewPath
     } = this.state
 
     return(
@@ -190,7 +196,7 @@ export default class RecordDetail extends Component {
 
                         {
                           dropboxEntry['.tag'] == 'file' && (
-                            <button onClick={() => this.onPreviewFile(dropboxEntry)}>
+                            <button onClick={() => this.onOpenDialogPreview(dropboxEntry)}>
                               Preview
                             </button>
                           )
@@ -205,10 +211,15 @@ export default class RecordDetail extends Component {
         </div>
 
         <div className="preview-dialog-wrapper">
-          <DropboxPreviewDialog
-            isVisible={isDialogPreviewVisible}
-            onCloseDialogPreview={this.onCloseDialogPreview}
-          />
+          {
+            isDialogPreviewVisible && (
+              <DropboxPreviewDialog
+                previewPath={previewPath}
+                isVisible={isDialogPreviewVisible}
+                onCloseDialogPreview={this.onCloseDialogPreview}
+              />
+            )
+          }
         </div>
 
         <div className="file-upload-dialog-wrapper">

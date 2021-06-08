@@ -2,9 +2,7 @@
   "name": "Dropbox",
   "version": "0.1.0",
   "scripts": {
-    "prestart": "npm run build",
-    "start": "node scripts/npm-start.js",
-    "upload": "kintone-plugin-uploader dist/plugin.zip --watch --waiting-dialog-ms 3000",
+    "upload": "kintone-plugin-uploader dist/plugin.zip",
     "develop": "npm run build -- --watch",
     "build": "cross-env NODE_ENV=development webpack",
     "build:prod": "cross-env NODE_ENV=production webpack",

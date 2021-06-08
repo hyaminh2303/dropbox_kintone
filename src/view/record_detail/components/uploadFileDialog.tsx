@@ -9,17 +9,19 @@ export default class UploadFileDialog extends Component {
     this.uploadFile = this.uploadFile.bind(this)
   }
 
-  uploadFile(file) {
-    if (!file) { return }
-    this.props.uploadFile(file)
+  uploadFile(acceptedFiles) {
+    acceptedFiles.forEach((file) => {
+      this.props.uploadFile(file)
+    })
   }
 
   renderContent() {
     return(
       <DropzoneArea
-        onChange={(acceptedFiles) => {
-          this.uploadFile(acceptedFiles[0])
+        onDrop={(acceptedFiles) => {
+          this.uploadFile(acceptedFiles)
         }}
+        filesLimit={3000}
         showPreviews={false}
         dropzoneText="Drag and drop a file here or click"
         showPreviewsInDropzone={false}

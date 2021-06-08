@@ -22,6 +22,7 @@
     "core-js": "^3.10.1",
     "dotenv": "^10.0.0",
     "dropbox": "^9.8.6",
+    "lodash": "^4.17.21",
     "material-ui-dropzone": "^3.5.0",
     "node-polyfill-webpack-plugin": "^1.1.2",
     "react": "^17.0.2",

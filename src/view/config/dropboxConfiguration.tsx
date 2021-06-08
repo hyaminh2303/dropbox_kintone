@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Text, Label } from '@kintone/kintone-ui-component'
+import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 
 import './style.sass'
@@ -8,13 +8,12 @@ export default class DropboxConfiguration extends Component {
   constructor(props) {
     super(props)
 
-    this.state = {
-      activatedTab: 'config_app',
-    }
-
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.dbx = new Dropbox({ accessToken: 'result.accessToken' });
+    this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this);
+
+    // this.dbx = new Dropbox({ accessToken: props.accessToken || '' });
+    this.dbx = null;
   }
 
   onCancel() {
@@ -22,73 +21,84 @@ export default class DropboxConfiguration extends Component {
   }
 
   handleClickSaveButton() {
-    const { state } = this.props;
+    const { folderName,  selectedField, appKeyValue, accessToken, setConfig } = this.props;
 
-    kintone.plugin.app.setConfig({
-      appKeyValue: state.appKeyValue,
-      accessToken: state.accessToken,
-      folderName: state.folderName
+    // if(appKeyValue === undefined || accessToken === undefined || folderName === undefined || selectedField === undefined) {
+    //   alert('All field is requied!')
+    // } else {
+      // this.createOrUpdateFolder(folderName)
+    // }
+  }
+
+  createOrUpdateFolder(name) {
+    this.dbx.filesCreateFolder({
+      path: `/${name}`,
+      autorename: true
+    }).then((result) => {
+      console.log(result)
     })
   }
 
-  render() {
-    const { config, state, setValueInput } = this.props;
+  UNSAFE_componentWillMount() {
+    console.log("this.props", this.props)
+  }
 
-    console.log(state)
+  render() {
+    const { setValueInput, folderName, formFields, selectedField, appKeyValue, accessToken } = this.props;
+
     return (
       <div>
-        <a
-          className="kintoneplugin-button-dialog-cancel btn-home"
-          href={`/k/${kintone.app.getId()}`}
-        >
-          Home
-        </a>
-
-        <div className="tab-btn-wrapper">
-          <button className="tab-btn">
-            Config App
-            </button>
-          <button className="tab-btn">
-            License
-            </button>
-        </div>
         <div className="tab-content">
-          <div className="kintoneplugin-row">
-            <Label text='App key' isRequired={false} />
-            <Text
-              value={state.appKeyValue}
-              onChange={(value) => setValueInput(value, 'appKeyValue')}
-              className="kintoneplugin-input-text"
-              isDisabled={config.accessToken !== undefined ? true : false}
-            />
-          </div>
-          <div className="kintoneplugin-row">
-            <Label text='Access Token' isRequired={false} />
-            <Text
-              value={state.accessToken}
-              isDisabled={config.accessToken !== undefined ? true : false}
-              onChange={(value) => setValueInput(value, 'accessToken')}
-              className="kintoneplugin-input-text" />
-          </div>
-          <div className="kintoneplugin-row">
-            <Label text='Folder Name' isRequired={false} />
-            <Text
-              value={state.folderName}
-              onChange={(value) => setValueInput(value, 'folderName')}
-              className="kintoneplugin-input-text" />
+          <div>
+            <div className="kintoneplugin-row">
+              <Label text='App key' isRequired={false} />
+              <div className="input-config">
+                <Text
+                  value={appKeyValue}
+                  onChange={(value) => setValueInput(value, 'appKeyValue')}
+                  className="kintoneplugin-input-text"
+                />
+              </div>
+            </div>
+            <div className="kintoneplugin-row">
+              <Label text='Access Token' isRequired={false} />
+              <div className="input-config">
+                <Text
+                  value={accessToken}
+                  onChange={(value) => setValueInput(value, 'accessToken')}
+                  className="kintoneplugin-input-text" />
+              </div>
+            </div>
+            <div className="kintoneplugin-row">
+              <Label text='Folder Name' isRequired={false} />
+              <div className="input-config">
+                <Text
+                  value={folderName}
+                  onChange={(value) => setValueInput(value, 'folderName')}
+                  className="kintoneplugin-input-text" />
+              </div>
+            </div>
+            <div className="kintoneplugin-row">
+              <Label text='Specified field to set folder name'/>
+              <Dropdown
+                items={formFields}
+                value={selectedField}
+                onChange={(value) => setValueInput(value, 'dropdownSpecifiedField')}
+              />
+            </div>
           </div>
 
           <div className="kintoneplugin-row">
             <button
               type="button"
-              className="js-cancel-button kintoneplugin-button-dialog-cancel"
-            onClick={this.onCancel}
+              className="js-cancel-button kintoneplugin-button-dialog-cancel btn-action"
+              onClick={this.onCancel}
             >
               Cancel
             </button>
 
             <button
-              className="kintoneplugin-button-dialog-ok"
+              className="kintoneplugin-button-dialog-ok btn-action"
               onClick={this.handleClickSaveButton}
             >
               Save

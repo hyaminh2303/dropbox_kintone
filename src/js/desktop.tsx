@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import {Helmet} from "react-helmet";
 
+import Loading from '../components/loading.tsx';
 import RecordDetail from '../view/record_detail';
 
 (async PLUGIN_ID => {
@@ -13,10 +14,13 @@ import RecordDetail from '../view/record_detail';
     constructor(props) {
       super(props)
       this.recordDetailComponentName = 'RecordDetail'
+      this.handleBlockUI = this.handleBlockUI.bind(this)
+      this.handleUnblockUI = this.handleUnblockUI.bind(this)
 
       this.state = {
         currentComponent: '',
-        event: {}
+        event: {},
+        isBlockUI: false
       }
     }
 
@@ -29,19 +33,36 @@ import RecordDetail from '../view/record_detail';
       })
     }
 
+    handleBlockUI() {
+      this.setState({isBlockUI: true})
+    }
+
+    handleUnblockUI() {
+      this.setState({isBlockUI: false})
+    }
+
+
     render() {
       const { config, pluginId } = this.props
-      const { currentComponent, event } = this.state
+      const { currentComponent, event, isBlockUI } = this.state
 
       if (currentComponent == this.recordDetailComponentName) {
         return(
-          <React.Fragment>
-            <Helmet>
-                <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="ofadvw0r9advmky"></script>
-            </Helmet>
-
-            <RecordDetail pluginId={pluginId} config={config} event={event} />
-          </React.Fragment>
+          <>
+            <Loading isVisible={isBlockUI}/>
+            <React.Fragment>
+              <Helmet>
+                  <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="ofadvw0r9advmky"></script>
+              </Helmet>
+              <RecordDetail
+                pluginId={pluginId}
+                config={config}
+                event={event}
+                handleBlockUI={this.handleBlockUI}
+                handleUnblockUI={this.handleUnblockUI}
+              />
+            </React.Fragment>
+          </>
         )
       } else {
         return(<div />)

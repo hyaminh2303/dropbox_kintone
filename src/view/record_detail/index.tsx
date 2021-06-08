@@ -1,7 +1,8 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faPlus } from '@fortawesome/free-solid-svg-icons'
+import { faUpload, faPlus, faTrash, faCopy, faEye } from '@fortawesome/free-solid-svg-icons'
 import { Dropbox, Error, files } from 'dropbox'
+import { Button } from '@material-ui/core';
 
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
@@ -156,15 +157,25 @@ export default class RecordDetail extends Component {
             />
 
             <div className="btn-menu-wrapper">
-              <button className="btn-upload-file" onClick={this.onClickUploadButton}>
-                <FontAwesomeIcon icon={faUpload} />
-                <span> Upload File </span>
-              </button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={ <FontAwesomeIcon icon={faUpload}/> }
+                className="btn-upload-file"
+                onClick={this.onClickUploadButton}
+              >
+                <span >Upload File</span>
+              </Button>
 
-              <button className="btn-create-folder" onClick={this.showCreateNewFolderForm}>
-                <FontAwesomeIcon icon={faPlus} />
-                <span> Create Folder </span>
-              </button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={ <FontAwesomeIcon icon={faPlus}/> }
+                className="btn-create-folder"
+                onClick={this.showCreateNewFolderForm}
+              >
+                <span>Create Folder</span>
+              </Button>
             </div>
 
             <div className="dropbox-detail-border">
@@ -176,27 +187,45 @@ export default class RecordDetail extends Component {
                       key={index}
                     >
                       <div className="dropbox-item-name" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
+                        <span>
                         { dropboxEntry.name }
+                        </span>
                       </div>
 
                       <div className="dropbox-item-actions">
                         {
                           dropboxEntry['.tag'] == 'file' && (
-                            <button onClick={() => this.onCopyLink(dropboxEntry)}>
+                            <Button
+                              style={{backgroundColor:'#5cb85c'}}
+                              variant="contained"
+                              startIcon={ <FontAwesomeIcon icon={faCopy}/> }
+                              onClick={() => this.onCopyLink(dropboxEntry)}
+                            >
                               Copy Link
-                            </button>
+                            </Button>
                           )
                         }
 
-                        <button onClick={() => this.onDeleteFile(dropboxEntry)}>
+                        <Button
+                          onClick={() => this.onDeleteFile(dropboxEntry)}
+                          variant="contained"
+                          startIcon={ <FontAwesomeIcon icon={faTrash}/> }
+                          color="secondary"
+
+                        >
                           Delete
-                        </button>
+                        </Button>
 
                         {
                           dropboxEntry['.tag'] == 'file' && (
-                            <button onClick={() => this.onOpenDialogPreview(dropboxEntry)}>
+                            <Button
+                              onClick={() => this.onOpenDialogPreview(dropboxEntry)}
+                              variant="contained"
+                              startIcon={ <FontAwesomeIcon icon={faEye}/> }
+                              style={{backgroundColor:'#0063cc'}}
+                              >
                               Preview
-                            </button>
+                            </Button>
                           )
                         }
                       </div>

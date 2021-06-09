@@ -1,24 +1,27 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
+import { Dropbox } from 'dropbox' // eslint-disable-line no-unused-vars
 import { forEach } from 'lodash'
 
-import DropboxConfiguration from '../view/config/dropboxConfiguration';
-import License from '../view/config/license';
+import DropboxConfiguration from '../view/config/dropboxConfiguration'
+import License from '../view/config/license'
 import '../view/config/style.sass'
 
 class PluginSettings extends Component {
   constructor(props) {
     super(props)
 
-    this.setValueInput = this.setValueInput.bind(this);
+    this.setStateValue = this.setStateValue.bind(this);
     this.setConfig = this.setConfig.bind(this);
+    this.checkName = this.checkName.bind(this);
 
     this.state = {
       activatedTab: 'config_app',
       appKeyValue: '',
       accessToken: '',
       folderName: '',
+      folderId: '',
       licenseKey: '',
       selectedField: '',
       formFields: [{
@@ -27,24 +30,30 @@ class PluginSettings extends Component {
         isDisabled: false
       }],
     }
+
+    this.dbx = null;
   }
 
-  setValueInput(value: any, inputName: string) {
-    if(inputName === 'appKeyValue') {
+  setStateValue(value: any, typeOfSetState: string) {
+    if(typeOfSetState === 'appKeyValue') {
       this.setState({appKeyValue: value})
-    } else if(inputName === 'accessToken') {
+    } else if(typeOfSetState === 'accessToken') {
       this.setState({accessToken: value})
-    } else if(inputName === 'folderName') {
+    } else if(typeOfSetState === 'folderName') {
       this.setState({folderName: value})
-    } else if(inputName === 'licenseKey') {
+    } else if(typeOfSetState === 'licenseKey') {
       this.setState({licenseKey: value})
-    } else if(inputName === 'dropdownSpecifiedField') {
+    } else if(typeOfSetState === 'dropdownSpecifiedField') {
       this.setState({selectedField: value})
+    } else if(typeOfSetState === 'folderId') {
+      this.setState({folderId: value})
     }
   }
 
   setConfig() {
-    const { folderName, selectedField, appKeyValue, accessToken, licenseKey } = this.state;
+    const { folderName, selectedField, appKeyValue,
+            accessToken, licenseKey, folderId
+          } = this.state;
 
     kintone.plugin.app.setConfig({
       appKeyValue: appKeyValue,
@@ -52,7 +61,33 @@ class PluginSettings extends Component {
       folderName: folderName,
       selectedField: selectedField,
       licenseKey: licenseKey,
+      folderId: folderId
     })
+  }
+
+  checkName() {
+    const { appKeyValue, accessToken, folderName, folderId } = this.state;
+    this.dbx = new Dropbox({ accessToken: accessToken || '' });
+
+    if(appKeyValue !== '' && accessToken !== '' && folderId !== '') {
+      this.dbx.filesListFolder({
+        path: '',
+      }).then((response: any) => {
+        const { result } = response;
+        const currentFolderOnDropbox = result.entries.filter(item => item.id === folderId);
+
+        if(currentFolderOnDropbox.length !== 0) {
+          console.log(folderName)
+          if(currentFolderOnDropbox[0].name !== folderName) {
+            const question = confirm('Folder name on Dropbox has been changed. Do you want to update the folder name again?')
+            if(question) {
+              this.setStateValue(currentFolderOnDropbox[0].name, 'folderName')
+              this.setConfig();
+            }
+          }
+        }
+      })
+    }
   }
 
   async UNSAFE_componentWillMount() {
@@ -73,13 +108,20 @@ class PluginSettings extends Component {
       isDisabled: false
     })
 
+    let sameFieldsInConfig = arrayFields.filter(item => {
+      return item.value === config.selectedField;
+    })
+
     this.setState({
       appKeyValue: config.appKeyValue || '',
       accessToken: config.accessToken || '',
       folderName: config.folderName || '',
       licenseKey: config.licenseKey || '',
-      selectedField: config.selectedField || '',
+      selectedField: sameFieldsInConfig.length > 0 ? config.selectedField : '',
+      folderId: config.folderId || '',
       formFields: arrayFields,
+    }, () => {
+      this.checkName();
     });
   }
 
@@ -104,12 +146,13 @@ class PluginSettings extends Component {
           ?
             <DropboxConfiguration
               {...this.state}
-              setValueInput={this.setValueInput}
+              setStateValue={this.setStateValue}
+              setConfig={this.setConfig}
             />
           :
             <License
               {...this.state}
-              setValueInput={this.setValueInput}
+              setStateValue={this.setStateValue}
               setConfig={this.setConfig}
             />
         }

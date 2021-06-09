@@ -16,7 +16,10 @@ export default class License extends Component {
   }
 
   render() {
-    const { licenseKey, setValueInput, setConfig } = this.props;
+    const { setStateValue, folderName, selectedField,
+            appKeyValue, accessToken, licenseKey,
+            setConfig
+          } = this.props;
 
     return (
       <div>
@@ -26,7 +29,7 @@ export default class License extends Component {
             <div className="input-config">
               <Text
                 value={licenseKey}
-                onChange={(value) => setValueInput(value, 'licenseKey')}
+                onChange={(value) => setStateValue(value, 'licenseKey')}
                 className="kintoneplugin-input-text" />
             </div>
           </div>
@@ -41,7 +44,13 @@ export default class License extends Component {
 
             <button
               className="kintoneplugin-button-dialog-ok btn-action"
-              onClick={() => setConfig()}
+              onClick={() => {
+                if(appKeyValue === '' || accessToken === '' || folderName === '' || selectedField === '') {
+                  alert('All field is requied!')
+                } else {
+                  setConfig()
+                }
+              }}
             >
               Save
               </button>

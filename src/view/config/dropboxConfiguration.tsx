@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
+import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 
 import './style.sass'
 
@@ -10,9 +11,9 @@ export default class DropboxConfiguration extends Component {
 
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this);
+    this.createFolder = this.createFolder.bind(this);
+    this.updateFolder = this.updateFolder.bind(this);
 
-    // this.dbx = new Dropbox({ accessToken: props.accessToken || '' });
     this.dbx = null;
   }
 
@@ -21,30 +22,84 @@ export default class DropboxConfiguration extends Component {
   }
 
   handleClickSaveButton() {
-    const { folderName,  selectedField, appKeyValue, accessToken, setConfig } = this.props;
+    const { folderName, selectedField, appKeyValue, accessToken, folderId } = this.props;
 
-    // if(appKeyValue === undefined || accessToken === undefined || folderName === undefined || selectedField === undefined) {
-    //   alert('All field is requied!')
-    // } else {
-      // this.createOrUpdateFolder(folderName)
-    // }
+    if (appKeyValue === '' || accessToken === '' || folderName === '' || selectedField === '') {
+      alert('All field is requied!')
+    } else {
+      // get current folder on Dropbox
+      this.dbx.filesListFolder({
+        path: '',
+      }).then((response: any) => {
+        const { result } = response;
+        const currentFolderOnDropbox = result.entries.filter(item => item.id === folderId);
+
+        if (folderId === '' || currentFolderOnDropbox.length === 0) {
+          this.createFolder(folderName)
+        } else {
+          this.updateFolder(folderName, currentFolderOnDropbox[0])
+        }
+      })
+    }
   }
 
-  createOrUpdateFolder(name) {
+  createFolder(name: string) {
+    const { selectedField, setConfig, setStateValue } = this.props;
+
     this.dbx.filesCreateFolder({
       path: `/${name}`,
       autorename: true
-    }).then((result) => {
-      console.log(result)
+    }).then(async (response: any) => {
+      setStateValue(response.result.id, 'folderId')
+
+      const restClient = new KintoneRestAPIClient();
+      const responseRecords = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+      const paths = responseRecords.map(item => {
+        const path = response.result.path_display + `/${item[selectedField].value}[${item['$id'].value}]`;
+        return path;
+      })
+
+      this.dbx.filesCreateFolderBatch({
+        paths: paths,
+        autorename: true,
+      }).then((response: any) => {
+        alert('Create folder on Dropbox successfully.');
+        setConfig();
+      })
     })
   }
 
-  UNSAFE_componentWillMount() {
-    console.log("this.props", this.props)
+  updateFolder(name: string, currentFolderOnDropbox: any) {
+    const { setConfig, selectedField } = this.props;
+    console.log(currentFolderOnDropbox)
+    this.dbx.filesMove({
+      from_path: `/${currentFolderOnDropbox.name}`,
+      to_path: `/${name}`,
+      autorename: true
+    }).then(async (response: any) => {
+      const restClient = new KintoneRestAPIClient();
+      const responseRecords = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+      const paths = responseRecords.map(item => {
+        const path = response.result.path_display + `/${item[selectedField].value}[${item['$id'].value}]`;
+        return path;
+      })
+
+      this.dbx.filesListFolder({
+        path: `${response.result.path_display}`,
+      }).then((response: any) => {
+        console.log(response)
+      })
+
+      alert('Update folder on Dropbox successfully.');
+      setConfig();
+    })
   }
 
   render() {
-    const { setValueInput, folderName, formFields, selectedField, appKeyValue, accessToken } = this.props;
+    const { setStateValue, folderName, formFields,
+            selectedField, appKeyValue, accessToken
+          } = this.props;
+    this.dbx = new Dropbox({ accessToken: accessToken || '' });
 
     return (
       <div>
@@ -55,7 +110,7 @@ export default class DropboxConfiguration extends Component {
               <div className="input-config">
                 <Text
                   value={appKeyValue}
-                  onChange={(value) => setValueInput(value, 'appKeyValue')}
+                  onChange={(value) => setStateValue(value, 'appKeyValue')}
                   className="kintoneplugin-input-text"
                 />
               </div>
@@ -65,7 +120,7 @@ export default class DropboxConfiguration extends Component {
               <div className="input-config">
                 <Text
                   value={accessToken}
-                  onChange={(value) => setValueInput(value, 'accessToken')}
+                  onChange={(value) => setStateValue(value, 'accessToken')}
                   className="kintoneplugin-input-text" />
               </div>
             </div>
@@ -74,17 +129,19 @@ export default class DropboxConfiguration extends Component {
               <div className="input-config">
                 <Text
                   value={folderName}
-                  onChange={(value) => setValueInput(value, 'folderName')}
+                  onChange={(value) => setStateValue(value, 'folderName')}
                   className="kintoneplugin-input-text" />
               </div>
             </div>
             <div className="kintoneplugin-row">
-              <Label text='Specified field to set folder name'/>
-              <Dropdown
-                items={formFields}
-                value={selectedField}
-                onChange={(value) => setValueInput(value, 'dropdownSpecifiedField')}
-              />
+              <Label text='Specified field to set folder name' />
+              <div className="input-config">
+                <Dropdown
+                  items={formFields}
+                  value={selectedField}
+                  onChange={(value) => setStateValue(value, 'dropdownSpecifiedField')}
+                />
+              </div>
             </div>
           </div>
 

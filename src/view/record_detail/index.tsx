@@ -1,8 +1,9 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faPlus, faTrash, faCopy, faEye } from '@fortawesome/free-solid-svg-icons'
+import { faUpload, faPlus, faTrash, faCopy, faEye, faFolderOpen, faFolder } from '@fortawesome/free-solid-svg-icons'
 import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
+import { FileIcon, defaultStyles } from 'react-file-icon';
 
 import Loading from '../../components/loading.tsx';
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
@@ -183,14 +184,29 @@ export default class RecordDetail extends Component {
             <div className="dropbox-detail-border">
               {
                 dropboxEntries.map((dropboxEntry, index) => {
+                  const typeOfFile = dropboxEntry.name.split('.').pop()
                   return(
                     <div
                       className="dropbox-item-wrapper"
                       key={index}
                     >
+                      <div className="dropbox-item-icon" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
+                        {
+                          dropboxEntry['.tag'] === 'folder'
+                          ?
+                            <FontAwesomeIcon icon={faFolder} className="fa folder-icon"/>
+                          :
+                            <FileIcon
+                              extension={ `"${typeOfFile}"`} {...defaultStyles[typeOfFile]}
+                              color= '#2ECC71'
+                              glyphColor= '#fff'
+                            />
+                        }
+                      </div>
+
                       <div className="dropbox-item-name" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
-                        <span>
-                        { dropboxEntry.name }
+                        <span >
+                          { dropboxEntry.name }
                         </span>
                       </div>
 

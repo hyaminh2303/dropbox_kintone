@@ -1,11 +1,10 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faPlus, faTrash, faCopy, faEye, faFolderOpen, faFolder } from '@fortawesome/free-solid-svg-icons'
+import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder } from '@fortawesome/free-solid-svg-icons'
 import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 
-import Loading from '../../components/loading.tsx';
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'

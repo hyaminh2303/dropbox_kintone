@@ -77,7 +77,6 @@ class PluginSettings extends Component {
         const currentFolderOnDropbox = result.entries.filter(item => item.id === folderId);
 
         if(currentFolderOnDropbox.length !== 0) {
-          console.log(folderName)
           if(currentFolderOnDropbox[0].name !== folderName) {
             const question = confirm('Folder name on Dropbox has been changed. Do you want to update the folder name again?')
             if(question) {
@@ -98,8 +97,11 @@ class PluginSettings extends Component {
     const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
 
     let arrayFields: any = [];
+    const fieldsOfSystem = ['作業者', 'ステータス', 'カテゴリー']
     forEach(responseFormFields.properties, (fieldCode: string, fieldKey: any) => {
-      arrayFields.push({ label: fieldCode.label, value: fieldCode.code, isDisabled: false });
+      if(!fieldsOfSystem.includes(fieldCode.label)) {
+        arrayFields.push({ label: fieldCode.label, value: fieldCode.code, isDisabled: false });
+      }
     })
 
     arrayFields.unshift({
@@ -112,12 +114,24 @@ class PluginSettings extends Component {
       return item.value === config.selectedField;
     })
 
+    if(sameFieldsInConfig.length === 0) {
+      alert('The specified code file was not found. The program will automatically specify the field code to default.');
+      kintone.plugin.app.setConfig({
+        appKeyValue: config.appKeyValue || '',
+        accessToken: config.accessToken || '',
+        folderName: config.folderName || '',
+        selectedField: '',
+        licenseKey: config.licenseKey || '',
+        folderId: config.folderId || '',
+      })
+    }
+
     this.setState({
       appKeyValue: config.appKeyValue || '',
       accessToken: config.accessToken || '',
       folderName: config.folderName || '',
       licenseKey: config.licenseKey || '',
-      selectedField: sameFieldsInConfig.length > 0 ? config.selectedField : '',
+      selectedField: config.selectedField || '',
       folderId: config.folderId || '',
       formFields: arrayFields,
     }, () => {
@@ -127,6 +141,7 @@ class PluginSettings extends Component {
 
   render() {
     const { activatedTab } = this.state;
+    const { pluginId } = this.props;
 
     return (
       <React.Fragment>
@@ -148,6 +163,7 @@ class PluginSettings extends Component {
               {...this.state}
               setStateValue={this.setStateValue}
               setConfig={this.setConfig}
+              pluginId={pluginId}
             />
           :
             <License

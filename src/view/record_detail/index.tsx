@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder } from '@fortawesome/free-solid-svg-icons'
+import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder, faPen } from '@fortawesome/free-solid-svg-icons'
 import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
@@ -9,6 +9,8 @@ import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'
 import FolderFormDialog from './components/folderFormDialog'
+import RenameFormDialog from './components/renameFormDialog'
+
 import './style.sass'
 
 
@@ -27,6 +29,8 @@ export default class RecordDetail extends Component {
     this.showCreateNewFolderForm = this.showCreateNewFolderForm.bind(this)
     this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this)
     this.requestDropbox = this.requestDropbox.bind(this)
+    this.onOpenDialogEditNameFolder = this.onOpenDialogEditNameFolder.bind(this)
+    this.editNameFolder = this.editNameFolder.bind(this)
 
     this.dbx = new Dropbox({
       accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
@@ -42,7 +46,9 @@ export default class RecordDetail extends Component {
       isDialogPreviewVisible: false,
       isDialogUploadVisible: false,
       isDialogFolderFormVisible: false,
+      isDialogRenameFolderFormVisible: false,
       previewPath: null,
+      entry: {},
     }
   }
 
@@ -140,11 +146,30 @@ export default class RecordDetail extends Component {
     })
   }
 
+  onOpenDialogEditNameFolder(dropboxEntry) {
+    this.setState({
+      isDialogRenameFolderFormVisible: true,
+      entry: dropboxEntry
+    })
+  }
+
+  editNameFolder(name) {
+    this.dbx.filesMove({
+      from_path	: `${this.state.currentPathLower}/${this.state.entry.name}`,
+      to_path	: `${this.state.currentPathLower}/${name}`,
+      autorename: true
+    }).then((response) => {
+      this.setState({isDialogRenameFolderFormVisible: false})
+      this.getDropboxEntries(this.state.currentPathLower)
+    })
+  }
+
+
   render() {
     const {
       dropboxEntries, currentPathDisplay, currentPathLower,
       isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible,
-      previewPath
+      previewPath, isDialogRenameFolderFormVisible
     } = this.state
 
     return(
@@ -228,9 +253,21 @@ export default class RecordDetail extends Component {
                           variant="contained"
                           startIcon={ <FontAwesomeIcon icon={faTrash} className="fa btn-icon"/> }
                           color="secondary"
-                        >
+                          >
                           Delete
                         </Button>
+
+                        {
+                          dropboxEntry['.tag'] == 'folder' && (
+                            <Button
+                              style={{backgroundColor:'#cc8854'}}
+                              variant="contained"
+                              startIcon={ <FontAwesomeIcon icon={faPen} className="fa btn-icon"/> }
+                              onClick={() => this.onOpenDialogEditNameFolder(dropboxEntry)}>
+                              Rename
+                            </Button>
+                          )
+                        }
 
                         {
                           dropboxEntry['.tag'] == 'file' && (
@@ -260,6 +297,19 @@ export default class RecordDetail extends Component {
                 previewPath={previewPath}
                 isVisible={isDialogPreviewVisible}
                 onCloseDialogPreview={this.onCloseDialogPreview}
+              />
+            )
+          }
+        </div>
+
+        <div className="rename-folder-form-dialog-wrapper">
+          {
+            isDialogRenameFolderFormVisible && (
+              <RenameFormDialog
+                isVisible={isDialogRenameFolderFormVisible}
+                entry={this.state.entry}
+                editNameFolder={this.editNameFolder}
+                onCloseDialog={() => this.setState({isDialogRenameFolderFormVisible: false})}
               />
             )
           }

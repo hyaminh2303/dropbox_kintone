@@ -253,7 +253,7 @@ export default class RecordDetail extends Component {
                           variant="contained"
                           startIcon={ <FontAwesomeIcon icon={faTrash} className="fa btn-icon"/> }
                           color="secondary"
-                          >
+                        >
                           Delete
                         </Button>
 

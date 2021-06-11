@@ -9,8 +9,6 @@ import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'
 import FolderFormDialog from './components/folderFormDialog'
-import RenameFormDialog from './components/renameFormDialog'
-
 import './style.sass'
 
 
@@ -302,10 +300,10 @@ export default class RecordDetail extends Component {
           }
         </div>
 
-        <div className="rename-folder-form-dialog-wrapper">
+        <div className="folder-form-dialog-wrapper">
           {
             isDialogRenameFolderFormVisible && (
-              <RenameFormDialog
+              <FolderFormDialog
                 isVisible={isDialogRenameFolderFormVisible}
                 entry={this.state.entry}
                 editNameFolder={this.editNameFolder}

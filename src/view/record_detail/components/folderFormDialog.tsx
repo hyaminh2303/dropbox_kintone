@@ -14,17 +14,32 @@ export default class FolderFormDialog extends Component {
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     // this code for update
+      this.setState({folderName: ''})
   }
 
   renderContent(entry) {
     return(
       <div className="folder-name-input-wraper">
-        <TextField
-          id="outlined-basic"
-          label="Folder Name"
-          variant="outlined"
-          defaultValue={!!entry ? entry.name : ''}
-          onChange={(event) => this.setState({folderName: event.target.value})}/>
+        {
+          !!entry
+            ?
+          <TextField
+            id="outlined-basic"
+            label="Folder Name"
+            variant="outlined"
+            defaultValue={!!entry ? entry.name : ""}
+            onChange={(event) => {this.setState({folderName: event.target.value})}}
+          />
+            :
+          <TextField
+            id="outlined-basic"
+            label="Folder Name"
+            variant="outlined"
+            value={this.state.folderName}
+            onChange={(event) => {this.setState({folderName: event.target.value,}), this.value = this.state.folderName}}
+          />
+
+        }
       </div>
     )
   }

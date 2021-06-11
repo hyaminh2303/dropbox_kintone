@@ -1,9 +1,10 @@
 import React, { Component } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUpload, faPlus } from '@fortawesome/free-solid-svg-icons'
-import { Dropbox } from 'dropbox'
+import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder } from '@fortawesome/free-solid-svg-icons'
+import { Dropbox, Error, files } from 'dropbox'
+import { Button } from '@material-ui/core';
+import { FileIcon, defaultStyles } from 'react-file-icon';
 
-import Loading from '../../components/loading.tsx';
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'
@@ -158,47 +159,89 @@ export default class RecordDetail extends Component {
             />
 
             <div className="btn-menu-wrapper">
-              <button className="btn-upload-file" onClick={this.onClickUploadButton}>
-                <FontAwesomeIcon icon={faUpload} />
-                <span> Upload File </span>
-              </button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={ <FontAwesomeIcon icon={faUpload} className="fa btn-icon"/> }
+                className="btn-upload-file"
+                onClick={this.onClickUploadButton}
+              >
+                <span >Upload File</span>
+              </Button>
 
-              <button className="btn-create-folder" onClick={this.showCreateNewFolderForm}>
-                <FontAwesomeIcon icon={faPlus} />
-                <span> Create Folder </span>
-              </button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={ <FontAwesomeIcon icon={faPlus} className="fa btn-icon"/> }
+                className="btn-create-folder"
+                onClick={this.showCreateNewFolderForm}
+              >
+                <span>Create Folder</span>
+              </Button>
             </div>
 
             <div className="dropbox-detail-border">
               {
                 dropboxEntries.map((dropboxEntry, index) => {
+                  const typeOfFile = dropboxEntry.name.split('.').pop()
                   return(
                     <div
                       className="dropbox-item-wrapper"
                       key={index}
                     >
+                      <div className="dropbox-item-icon" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
+                        {
+                          dropboxEntry['.tag'] === 'folder'
+                          ?
+                            <FontAwesomeIcon icon={faFolder} className="fa folder-icon"/>
+                          :
+                            <FileIcon
+                              extension={ `"${typeOfFile}"`} {...defaultStyles[typeOfFile]}
+                              color= '#2ECC71'
+                              glyphColor= '#fff'
+                            />
+                        }
+                      </div>
+
                       <div className="dropbox-item-name" onClick={() => this.onClickDropboxFolder(dropboxEntry)}>
-                        { dropboxEntry.name }
+                        <span >
+                          { dropboxEntry.name }
+                        </span>
                       </div>
 
                       <div className="dropbox-item-actions">
                         {
                           dropboxEntry['.tag'] == 'file' && (
-                            <button onClick={() => this.onCopyLink(dropboxEntry)}>
+                            <Button
+                              style={{backgroundColor:'#5cb85c'}}
+                              variant="contained"
+                              startIcon={ <FontAwesomeIcon icon={faCopy} className="fa btn-icon"/> }
+                              onClick={() => this.onCopyLink(dropboxEntry)}
+                            >
                               Copy Link
-                            </button>
+                            </Button>
                           )
                         }
 
-                        <button onClick={() => this.onDeleteFile(dropboxEntry)}>
+                        <Button
+                          onClick={() => this.onDeleteFile(dropboxEntry)}
+                          variant="contained"
+                          startIcon={ <FontAwesomeIcon icon={faTrash} className="fa btn-icon"/> }
+                          color="secondary"
+                        >
                           Delete
-                        </button>
+                        </Button>
 
                         {
                           dropboxEntry['.tag'] == 'file' && (
-                            <button onClick={() => this.onOpenDialogPreview(dropboxEntry)}>
+                            <Button
+                              onClick={() => this.onOpenDialogPreview(dropboxEntry)}
+                              variant="contained"
+                              startIcon={ <FontAwesomeIcon icon={faEye} className="fa btn-icon"/> }
+                              style={{backgroundColor:'#0063cc'}}
+                              >
                               Preview
-                            </button>
+                            </Button>
                           )
                         }
                       </div>

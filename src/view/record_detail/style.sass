@@ -31,9 +31,16 @@
   .btn-menu-wrapper
     text-align: right
     margin-bottom: 15px
+    .MuiButton-root
+      text-transform: unset
+      font-size: 12px !important
+      line-height:0
+      color:#fff !important
 
   .btn-upload-file, .btn-create-folder
     margin-left: 5px
+
+
 
   .preview-dialog-wrapper
     .kuc-dialog-body
@@ -42,17 +49,47 @@
       min-width: 1000px
 
   .dropbox-item-wrapper
+    margin-bottom: 10px
+    padding: 5px
     display: flex
     flex-direction: row
     justify-content: space-between
+    &:hover
+      background-color: #ddd
+      opacity: 1
 
     .dropbox-item-name
+      align-self: center
+      max-width: 425px
       flex-grow: 1
+      padding-left: 15px
+      padding-right: 15px
 
-    .dropbox-item-name, .dropbox-item-actions
-      margin-bottom: 15px
+    .dropbox-item-name, .dropbox-item-actions, .dropbox-item-icon
       cursor: pointer
 
+    .dropbox-item-icon
+      align-self: center
+      width: 30px
+      margin-left: 5px
+
     .dropbox-item-actions
+      align-self: center
+      width: 310px
+      line-height: 1.4
       button
         margin-left: 5px
+
+    .MuiButton-root
+      text-transform: unset
+      font-size: 13px
+      line-height: 0
+      color:#fff
+
+  .fa.btn-icon
+    font-size: 12px
+
+  .fa.folder-icon
+    font-size: 30px
+    color: #ffb900
+

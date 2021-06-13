@@ -16,10 +16,7 @@ export default class License extends Component {
   }
 
   render() {
-    const { setStateValue, folderName, selectedField,
-            appKeyValue, accessToken, licenseKey,
-            setConfig
-          } = this.props;
+    const { licenseKey, setConfig } = this.props;
 
     return (
       <div>
@@ -45,7 +42,7 @@ export default class License extends Component {
             <button
               className="kintoneplugin-button-dialog-ok btn-action"
               onClick={() => {
-                if(appKeyValue === '' || accessToken === '' || folderName === '' || selectedField === '') {
+                if(accessToken === '' || folderName === '' || selectedField === '') {
                   alert('All field is requied!')
                 } else {
                   setConfig()

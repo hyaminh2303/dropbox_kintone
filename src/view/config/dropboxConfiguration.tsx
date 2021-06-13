@@ -16,8 +16,6 @@ export default class DropboxConfiguration extends Component {
 
     this.dbx = null;
     this.state = {
-      fieldsOfSystem: ['更新者', '作成者', '更新日時', '作成日時'],
-      appKeyValue: 'ofadvw0r9advmky', // props.appKeyValue,
       accessToken: props.accessToken,
       folderName: props.folderName,
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
@@ -32,14 +30,13 @@ export default class DropboxConfiguration extends Component {
 
   async handleClickSaveButton() {
     const {
-      appKeyValue,
       accessToken,
       folderName,
       selectedField,
       dropbox_configuration_app_id
     } = this.state;
 
-    if (appKeyValue === '' || accessToken === '' || selectedField === '') {
+    if (accessToken === '' || selectedField === '') {
       alert('All field is requied!')
     } else {
 
@@ -47,7 +44,6 @@ export default class DropboxConfiguration extends Component {
       if (!!createFolderResponse['errorCode']) { return }
 
       this.props.setPluginConfig({
-        appKeyValue: appKeyValue,
         accessToken: accessToken,
         selectedField: selectedField,
         dropbox_configuration_app_id: dropbox_configuration_app_id
@@ -241,7 +237,6 @@ export default class DropboxConfiguration extends Component {
     const { formFields } = this.props;
 
     const {
-      appKeyValue,
       accessToken,
       folderName,
       selectedField,
@@ -252,16 +247,6 @@ export default class DropboxConfiguration extends Component {
       <div>
         <div className="tab-content">
           <div>
-            <div className="kintoneplugin-row">
-              <Label text='App key' isRequired={false} />
-              <div className="input-config">
-                <Text
-                  value={appKeyValue}
-                  onChange={(value) => this.setState({appKeyValue: value})}
-                  className="kintoneplugin-input-text"
-                />
-              </div>
-            </div>
             <div className="kintoneplugin-row">
               <Label text='Access Token' isRequired={false} />
               <div className="input-config">

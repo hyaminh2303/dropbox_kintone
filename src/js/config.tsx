@@ -16,7 +16,6 @@ class PluginSettings extends Component {
 
     this.state = {
       activatedTab: 'config_app',
-      appKeyValue: '',
       accessToken: '',
       licenseKey: '',
       selectedField: '',
@@ -44,7 +43,6 @@ class PluginSettings extends Component {
     const config = kintone.plugin.app.getConfig(pluginId);
 
     this.setState({
-      appKeyValue: config.appKeyValue || '',
       accessToken: config.accessToken || '',
       licenseKey: config.licenseKey || '',
       selectedField: config.selectedField || '',

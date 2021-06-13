@@ -3,26 +3,26 @@ import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
-
+import { getRootConfigurationRecord, updateRootRecord, addRootRecord } from '../../utils/recordsHelper'
 import './style.sass'
 
+const  ROOT_FOLDER = ""
 export default class DropboxConfiguration extends Component {
   constructor(props) {
     super(props)
-
+    this.findOrCreateRootFolder = this.findOrCreateRootFolder.bind(this)
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.createFolder = this.createFolder.bind(this);
-    this.updateFolder = this.updateFolder.bind(this);
-    this.updateRootFolder = this.updateRootFolder.bind(this);
-    this.updateChildFolders = this.updateChildFolders.bind(this);
-    this.createChildFolderForNewRecords = this.createChildFolderForNewRecords.bind(this);
-    this.getNewRecords = this.getNewRecords.bind(this);
-    this.updateBold = this.updateBold.bind(this);
 
     this.dbx = null;
     this.state = {
-      fieldsOfSystem: ['更新者', '作成者', '更新日時', '作成日時']
+      fieldsOfSystem: ['更新者', '作成者', '更新日時', '作成日時'],
+      appKeyValue: 'ofadvw0r9advmky', // props.appKeyValue,
+      accessToken: props.accessToken,
+      folderName: props.folderName,
+      dropbox_configuration_app_id: props.dropbox_configuration_app_id,
+      licenseKey: props.licenseKey,
+      selectedField: props.selectedField
     }
   }
 
@@ -30,190 +30,123 @@ export default class DropboxConfiguration extends Component {
     window.location.href = "../../" + kintone.app.getId() + "/plugin/";
   }
 
-  handleClickSaveButton() {
-    const { folderName, selectedField, appKeyValue, accessToken, folderId } = this.props;
+  async handleClickSaveButton() {
+    const {
+      appKeyValue,
+      accessToken,
+      folderName,
+      selectedField,
+      dropbox_configuration_app_id
+    } = this.state;
 
-    if (appKeyValue === '' || accessToken === '' || folderName === '' || selectedField === '') {
+    if (appKeyValue === '' || accessToken === '' || selectedField === '') {
       alert('All field is requied!')
     } else {
-      // get current folder on Dropbox
-      this.dbx.filesListFolder({
-        path: '',
-      }).then((response: any) => {
-        const { result } = response;
-        const currentFolderOnDropbox = result.entries.filter(item => item.id === folderId);
+      this.dbx = new Dropbox({ accessToken: accessToken })
+      await this.findOrCreateRootFolder()
+      // this.props.setPluginConfig({
+      //   appKeyValue: appKeyValue,
+      //   accessToken: accessToken,
+      //   selectedField: selectedField,
+      //   dropbox_configuration_app_id: dropbox_configuration_app_id
+      // })
 
-        if (folderId === '' || currentFolderOnDropbox.length === 0) {
-          this.createFolder(folderName)
-        } else {
-          this.updateFolder(currentFolderOnDropbox[0])
-        }
-      })
+      // const restClient = new KintoneRestAPIClient();
+
+
+      // const records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+
+      // const childFolderPaths = records.map((record) => {
+      //   return `${rootPath}/${record[selectedField].value || ''}[${record['$id'].value}]`
+      // })
+      // console.log(123123)
+      // console.log(childFolderPaths)
+      // await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
+
     }
   }
 
-  createFolder(name: string) {
-    const { setStateValue } = this.props;
+  async findOrCreateRootFolder() {
+    const { folderName, dropbox_configuration_app_id } = this.state;
+    console.log(dropbox_configuration_app_id)
 
-    this.dbx.filesCreateFolder({
-      path: `/${name}`,
-      autorename: true
-    }).then(async (response: any) => {
-      setStateValue(response.result.id, 'folderId')
-
-      const textAlert = 'Create folder on Dropbox successfully.';
-      this.createChildFolderForNewRecords(response.result.path_display, textAlert);
-    })
-  }
-
-  updateFolder(currentFolderOnDropbox: any) {
-    const { selectedField, pluginId, folderName } = this.props;
-    const config = kintone.plugin.app.getConfig(pluginId);
-
-    if (folderName !== config.folderName && selectedField === config.selectedField) {
-      this.updateRootFolder(currentFolderOnDropbox.name);
-    } else if (folderName === config.folderName && selectedField !== config.selectedField) {
-      this.updateChildFolders();
-    } else if(folderName !== config.folderName && selectedField !== config.selectedField) {
-      this.updateBold(currentFolderOnDropbox.name)
-    }
-  }
-
-  updateRootFolder(currentFolderOnDropbox: string) {
-    const { folderName } = this.props;
-
-    this.dbx.filesMove({
-      from_path: `/${currentFolderOnDropbox}`,
-      to_path: `/${folderName}`,
-      autorename: true
-    }).then((response: any) => {
-      const textAlert = 'Update folder on Dropbox successfully.';
-      this.createChildFolderForNewRecords(response.result.path_display, textAlert);
-    })
-  }
-
-  updateChildFolders() {
-    const { folderName, selectedField } = this.props;
-    const { fieldsOfSystem } = this.state;
-
-    this.dbx.filesListFolder({
-      path: `/${folderName}`,
-    }).then(async (response: any) => {
-      const { result: { entries } } = response;
-
-      const restClient = new KintoneRestAPIClient();
-      const responseRecords = await restClient.record.getAllRecords({ app: kintone.app.getId() });
-
-      const newpaths = entries.map(entry => {
-        const currentRecord = find(responseRecords, (record) => {
-          return record['$id'].value == entry.name.substr(entry.name.length - 2, 1);
-        })
-
-        let newFolderName;
-        if (currentRecord[selectedField] === undefined) {
-          newFolderName = `Undefined Folder[${currentRecord['$id'].value}]`;
-        } else if(fieldsOfSystem.includes(selectedField)){
-          newFolderName = `${currentRecord[selectedField].value.name}[${currentRecord['$id'].value}]`;
-        } else {
-          newFolderName = `${currentRecord[selectedField].value}[${currentRecord['$id'].value}]`;
+    getRootConfigurationRecord(dropbox_configuration_app_id).then((configurationRecord: any) => {
+      this.dbx = new Dropbox({ accessToken: accessToken });
+      // Get root folder name on Dropbox
+      this.dbx.filesGetMetadata({path: configurationRecord.dropbox_folder_id.value}).then((response: any) => {
+        if (folderName != response.result.name) {
+          // If the folder name has been changed
+          this.setState({ folderName: response.result.name })
+          const currentRootPath = `${ROOT_FOLDER}/${response.result.name}`
+          const newRootPath = `${ROOT_FOLDER}/${folderName}`
+          this.dbx.filesMove({ from_path: currentRootPath, to_path: newRootPath }).then((filesMoveResp: any) => {
+            // If rename success, then update root folder name in configuration app
+            updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+              root_folder_name: { value: filesMoveResp.result.name }
+            })
+          }).catch((error) => {
+            alert('Cannot rename folder, please check the name')
+          })
         }
-
-        const param = {
-          from_path: `${entry.path_display}`,
-          to_path: `/${folderName}/${newFolderName}`
+      }).catch(async (error: any) => {
+        if (error.status == 409) {
+          // If the folder doesnt exist
+          const rootPath = `${ROOT_FOLDER}/${folderName}`
+          const createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath })
+          addRootRecord(dropbox_configuration_app_id, folderName, createFolderResponse.result.id)
+        } else if (error.status == 400) {
+          alert('Please enter correct access token')
         }
-
-        return param;
       })
-
-      if (newpaths.length > 0) {
-        this.dbx.filesMoveBatch({
-          entries: newpaths,
-          autorename: true,
-        }).then((response: any) => {
-          const textAlert = 'Update folders on Dropbox successfully.';
-          this.createChildFolderForNewRecords(`/${folderName}`, textAlert)
-        })
-      } else {
-        const textAlert = 'Update folders on Dropbox successfully.';
-        this.createChildFolderForNewRecords(`/${folderName}`, textAlert)
-      }
+    }).catch((error: any) => {
+      console.log(error)
+      alert('Please enter correct configuration app id!')
     })
   }
 
-  updateBold(currentFolderOnDropbox: string) {
-    const { folderName } = this.props;
+  UNSAFE_componentWillMount() {
+    // Get Root Folder
+    const { dropbox_configuration_app_id, accessToken } = this.props;
 
-    this.dbx.filesMove({
-      from_path: `/${currentFolderOnDropbox}`,
-      to_path: `/${folderName}`,
-      autorename: true
-    }).then((response: any) => {
-      this.updateChildFolders();
-    })
-  }
+    if (!accessToken && !dropbox_configuration_app_id) {
+      return;
+    }
 
-  async createChildFolderForNewRecords(rootPath: string, textAlert: string) {
-    const { selectedField, setConfig } = this.props;
-    const { fieldsOfSystem } = this.state;
+    getRootConfigurationRecord(dropbox_configuration_app_id).then((configurationRecord: any) => {
+      if (!!configurationRecord) {
+        this.dbx = new Dropbox({ accessToken: accessToken });
 
-    const restClient = new KintoneRestAPIClient();
-    const responseRecords = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+        // Get root folder name on Dropbox
+        this.dbx.filesGetMetadata({path: configurationRecord.dropbox_folder_id.value}).then((response: any) => {
+          this.setState({ folderName: response.result.name })
 
-    this.dbx.filesListFolder({
-      path: rootPath,
-    }).then((response: any) => {
-      const { result: { entries } } = response;
-      const newRecords = this.getNewRecords(responseRecords, entries);
-
-      if (newRecords.length > 0) {
-        const paths = newRecords.map(item => {
-          let path;
-          if(!fieldsOfSystem.includes(selectedField)) {
-            path = `${rootPath}/${item[selectedField].value}[${item['$id'].value}]`;
-          } else {
-            path = `${rootPath}/${item[selectedField].value.name}[${item['$id'].value}]`;
+          // Update root folder name in configuration app
+          updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+            root_folder_name: { value: response.result.name }
+          })
+        }).catch((error: any) => {
+          if (error.status == 409) {
+            alert('Cannot find dropbox folder on Dropbox, it might be deleted')
+          } else if (error.status == 400) {
+            alert('Please enter correct access token')
           }
-          return path;
         })
-
-        this.dbx.filesCreateFolderBatch({
-          paths: paths,
-          autorename: true,
-        }).then((response: any) => {
-          alert(textAlert);
-          setConfig();
-        })
-      } else {
-        alert(textAlert);
-        setConfig();
       }
+    }).catch((error: any) => {
+      alert('Please enter correct configuration app id!')
     })
-  }
-
-  getNewRecords(responseRecords: any, entries: any) {
-    let newRecords: any = [];
-
-    if (entries.length > 0) {
-      responseRecords.forEach((record) => {
-        const folder = find(entries, (entry) => { return entry.name.substr(entry.name.length -2, 1) == record['$id'].value });
-
-        if (folder === undefined) {
-          newRecords.push(record);
-        }
-      })
-    } else {
-      newRecords = responseRecords;
-    }
-
-    return newRecords;
   }
 
   render() {
-    const { setStateValue, folderName, formFields,
-      selectedField, appKeyValue, accessToken
-    } = this.props;
-    this.dbx = new Dropbox({ accessToken: accessToken || '' });
+    const { formFields } = this.props;
+
+    const {
+      appKeyValue,
+      accessToken,
+      folderName,
+      selectedField,
+      dropbox_configuration_app_id
+    } = this.state;
 
     return (
       <div>
@@ -224,7 +157,7 @@ export default class DropboxConfiguration extends Component {
               <div className="input-config">
                 <Text
                   value={appKeyValue}
-                  onChange={(value) => setStateValue(value, 'appKeyValue')}
+                  onChange={(value) => this.setState({appKeyValue: value})}
                   className="kintoneplugin-input-text"
                 />
               </div>
@@ -234,16 +167,27 @@ export default class DropboxConfiguration extends Component {
               <div className="input-config">
                 <Text
                   value={accessToken}
-                  onChange={(value) => setStateValue(value, 'accessToken')}
+                  onChange={(value) => this.setState({accessToken: value})}
                   className="kintoneplugin-input-text" />
               </div>
             </div>
+
+            <div className="kintoneplugin-row">
+              <Label text='Dropbox Configuration App ID' isRequired={false} />
+              <div className="input-config">
+                <Text
+                  value={dropbox_configuration_app_id}
+                  onChange={(value) => this.setState({dropbox_configuration_app_id: value})}
+                  className="kintoneplugin-input-text" />
+              </div>
+            </div>
+
             <div className="kintoneplugin-row">
               <Label text='Folder Name' isRequired={false} />
               <div className="input-config">
                 <Text
                   value={folderName}
-                  onChange={(value) => setStateValue(value, 'folderName')}
+                  onChange={(value) => this.setState({folderName: value})}
                   className="kintoneplugin-input-text" />
               </div>
             </div>
@@ -253,7 +197,7 @@ export default class DropboxConfiguration extends Component {
                 <Dropdown
                   items={formFields}
                   value={selectedField}
-                  onChange={(value) => setStateValue(value, 'dropdownSpecifiedField')}
+                  onChange={(value) => this.setState({selectedField: value})}
                 />
               </div>
             </div>

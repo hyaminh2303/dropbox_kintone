@@ -5,11 +5,21 @@ import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 
+
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'
 import FolderFormDialog from './components/folderFormDialog'
+import {
+  getRootConfigurationRecord,
+  getConfigurationRecord,
+  updateRootRecord,
+  addChildFolderRecord
+} from '../../utils/recordsHelper'
+
 import './style.sass'
+import { ControlPointDuplicateTwoTone } from '@material-ui/icons';
+import { config } from 'dotenv';
 
 
 export default class RecordDetail extends Component {
@@ -28,12 +38,10 @@ export default class RecordDetail extends Component {
     this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this)
     this.requestDropbox = this.requestDropbox.bind(this)
 
-    this.dbx = new Dropbox({
-      accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
-    })
+    this.dbx = new Dropbox({ accessToken: props.config.accessToken })
 
     // TODO: Need to be updated by plugin config
-    const rootPath = props.folderName || '/DropboxForKintone' + `/${props.event.record['会社名'].value}[${props.event.record['$id'].value}]`
+    const rootPath = ""
 
     this.state = {
       currentPathLower: rootPath,
@@ -47,20 +55,116 @@ export default class RecordDetail extends Component {
   }
 
   UNSAFE_componentWillMount() {
-    this.getDropboxEntries(this.state.currentPathLower)
+    this.getFolderRoot()
   }
 
-  requestDropbox(dbxMethod: string, args: any, successCallback=function(error: any){}, errorCallback=function(error: any){}) {
+  async getFolderRoot() {
+    const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();
+    if (!!response['errorCode']) {
+      return;
+    }
+
+    const rootPath = response['path']
+
+    this.setState({ currentPathLower: rootPath, currentPathDisplay: rootPath }, () => {
+      console.log(rootPath)
+      this.getDropboxEntries(rootPath)
+    })
+  }
+
+  async findOrCreateDropboxConfigurationRecordAndGetRootPath() {
+    const { config, config: { dropbox_configuration_app_id }, event: { record } } = this.props
+    const configurationRecord = await getConfigurationRecord(dropbox_configuration_app_id, record['$id'].value)
+
+    if (!!configurationRecord && configurationRecord['errorCode'] == 'invalidConfigurationAppId') {
+      alert('Please endter configuration app id in plugin setting!')
+      return {
+        errorCode: 'invalidConfigurationAppId'
+      }
+    }
+
+    if (!!configurationRecord) {
+      const metadataResponse = await this.dbx.filesGetMetadata({
+        path: configurationRecord.dropbox_folder_id.value
+      }).catch((error: any) => {
+        return {
+          errorCode: 'notFoundFolderOnDropbox'
+        }
+      })
+
+      if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
+        // this means folder already deleted on dropbox, need to create it again
+        const rootPath = `/${configurationRecord['root_folder_name'].value}/${configurationRecord['dropbox_folder_name'].value}`
+        const createFolderResponse = await this.requestDropbox('filesCreateFolder', {
+          path: rootPath, autorename: true
+        })
+
+        return {
+          path: createFolderResponse.result.path_lower
+        }
+
+      } else if (metadataResponse.result.name != configurationRecord['dropbox_folder_name'].value) {
+        // This mean the name has been changed on dropbox, then need to update in kintone
+        updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+          dropbox_folder_name: { value: metadataResponse.result.name }
+        })
+      }
+
+      // if has no change on folder name on both kinton and dropbox => return path by dropbox metadata
+      // if has any change on folder name, then the code above already updated folder name in configuration app. so we can return path by dropbox metadata as well
+      return {
+        path: metadataResponse.result.path_lower
+      }
+    } else {
+
+      const rootConfigurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
+      if (!!rootConfigurationRecord && rootConfigurationRecord['errorCode'] == 'invalidConfigurationAppId') {
+        alert('Please endter configuration app id in plugin setting!')
+        return {
+          errorCode: 'invalidConfigurationAppId'
+        }
+      }
+
+      const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
+      const rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${folderName}`
+      const createFolderResponse = await this.requestDropbox('filesCreateFolder', {
+        path: rootPath, autorename: true
+      })
+
+      await addChildFolderRecord(
+        dropbox_configuration_app_id,
+        rootConfigurationRecord['root_folder_name'].value,
+        createFolderResponse.result.id,
+        record['$id'].value,
+        createFolderResponse.result.name
+      )
+
+      return {
+        path: createFolderResponse.result.path_lower
+      }
+    }
+  }
+
+  async requestDropbox(dbxMethod: string, args: any, successCallback=(error: any)=>{}, errorCallback=(error: any)=>{}) {
     this.props.handleBlockUI()
-    this.dbx[dbxMethod](args).then((response) => {
-      this.props.handleUnblockUI()
-      successCallback(response)
-    }).catch((error) => {
-      this.props.handleUnblockUI()
-      if (!!errorCallback) {
-        errorCallback(error)
+    const response = await this.dbx[dbxMethod](args).catch((error: any) => {
+      return {
+        errorCode: 'error',
+        error: error
       }
     })
+
+    this.props.handleUnblockUI()
+
+    if (!response['errorCode']) {
+      successCallback(response)
+      return response
+    } else {
+      if (!!errorCallback) {
+        errorCallback(response['error'])
+      }
+      return response['error']
+    }
   }
 
   onClickDropboxFolder(dropboxEntry: any) {
@@ -72,7 +176,7 @@ export default class RecordDetail extends Component {
     this.getDropboxEntries(dropboxEntry.path_lower)
   }
 
-  navigateByBreadcrumb(currentPathDisplay, currentPathLower) {
+  navigateByBreadcrumb(currentPathDisplay: string, currentPathLower: string) {
     this.setState({
       currentPathDisplay: currentPathDisplay,
       currentPathLower: currentPathLower
@@ -127,6 +231,8 @@ export default class RecordDetail extends Component {
   }
 
   uploadFile(file) {
+    console.log(this.state.currentPathLower)
+    console.log(file)
     this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
       this.onCloseDialogUpload()
       this.getDropboxEntries(this.state.currentPathLower)
@@ -134,6 +240,8 @@ export default class RecordDetail extends Component {
   }
 
   createOrUpdateFolder(name) {
+    console.log(this.state.currentPathLower)
+    console.log(`${this.state.currentPathLower}/${name}`)
     this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`, autorename: true }, (dbxResponse) => {
       this.setState({isDialogFolderFormVisible: false})
       this.getDropboxEntries(this.state.currentPathLower)

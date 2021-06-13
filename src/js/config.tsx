@@ -1,29 +1,42 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
+import { KintoneRestAPIClient } from '@kintone/rest-api-client'
+import { Dropbox } from 'dropbox' // eslint-disable-line no-unused-vars
+import { forEach } from 'lodash'
 
-import DropboxConfiguration from '../view/config/dropboxConfiguration';
+import DropboxConfiguration from '../view/config/dropboxConfiguration'
+import License from '../view/config/license'
+import '../view/config/style.sass'
 
 class PluginSettings extends Component {
   constructor(props) {
     super(props)
 
-    this.setValueInput = this.setValueInput.bind(this);
+    this.setPluginConfig = this.setPluginConfig.bind(this);
 
     this.state = {
+      activatedTab: 'config_app',
       appKeyValue: '',
       accessToken: '',
+      licenseKey: '',
+      selectedField: '',
       folderName: '',
+      dropbox_configuration_app_id: '',
+      formFields: [{
+        label: 'Please select',
+        value: '',
+        isDisabled: false
+      }]
     }
   }
 
-  setValueInput(value: any, inputName: string) {
-    if(inputName === 'appKeyValue') {
-      this.setState({appKeyValue: value})
-    } else if(inputName === 'accessToken') {
-      this.setState({accessToken: value})
-    } else if(inputName === 'folderName') {
-      this.setState({folderName: value})
-    }
+  setPluginConfig(values: any) {
+    const { pluginId } = this.props
+    const currentConfig = kintone.plugin.app.getConfig(pluginId)
+    const newConfig = Object.assign(currentConfig, values)
+    kintone.plugin.app.setConfig(newConfig, () => {
+      return false;
+    })
   }
 
   UNSAFE_componentWillMount() {
@@ -31,26 +44,85 @@ class PluginSettings extends Component {
     const config = kintone.plugin.app.getConfig(pluginId);
 
     this.setState({
-      activatedTab: 'config_app',
       appKeyValue: config.appKeyValue || '',
       accessToken: config.accessToken || '',
-      folderName: config.folderName || '',
-    })
+      licenseKey: config.licenseKey || '',
+      selectedField: config.selectedField || '',
+      dropbox_configuration_app_id: config.dropbox_configuration_app_id,
+      formFields: [{
+        label: config.selectedField || '',
+        value: config.selectedField || '',
+        isDisabled: false
+      }]
+    });
+  }
+
+  componentDidMount() {
+    (async () => {
+      const { selectedField } = this.state;
+
+      const restClient = new KintoneRestAPIClient();
+      const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
+
+      let arrayFields: any = [];
+      forEach(responseFormFields.properties, (fieldCode: string, fieldKey: any) => {
+        arrayFields.push({
+          label: fieldCode.label,
+          value: fieldCode.code,
+          isDisabled: false
+        });
+      })
+
+      arrayFields.unshift({
+        label: 'Please select',
+        value: '',
+        isDisabled: false
+      })
+
+      if (arrayFields.filter((i) => { return (i.value == selectedField) }).length == 0) {
+        console.log(7612372157351)
+        arrayFields.push({
+          label: selectedField || '',
+          value: selectedField || '',
+          isDisabled: false
+        })
+      }
+
+      this.setState({ formFields: arrayFields });
+    })()
   }
 
   render() {
+    const { activatedTab } = this.state;
     const { pluginId } = this.props;
-    const config = kintone.plugin.app.getConfig(pluginId);
 
     return (
       <React.Fragment>
         <h2>Settings for pluginDropbox</h2>
 
-        <DropboxConfiguration
-          state={this.state}
-          setValueInput={this.setValueInput}
-          config={config}
-        />
+        <div className="tab-btn-wrapper">
+          <button className="tab-btn" onClick={() => this.setState({ activatedTab: 'config_app' })}>
+            Config App
+            </button>
+          <button className="tab-btn" onClick={() => this.setState({ activatedTab: 'licenseKeyTab' })}>
+            License
+            </button>
+        </div>
+
+        {
+          activatedTab === 'config_app'
+          ?
+            <DropboxConfiguration
+              {...this.state}
+              setPluginConfig={this.setPluginConfig}
+              pluginId={pluginId}
+            />
+          :
+            <License
+              {...this.state}
+            />
+        }
+
       </React.Fragment>
     )
   }

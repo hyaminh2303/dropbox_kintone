@@ -25,10 +25,10 @@ export default class RecordDetail extends Component {
     this.onCloseDialogUpload = this.onCloseDialogUpload.bind(this)
     this.uploadFile = this.uploadFile.bind(this)
     this.showCreateNewFolderForm = this.showCreateNewFolderForm.bind(this)
-    this.createOrUpdateFolder = this.createOrUpdateFolder.bind(this)
+    this.createChildFolder = this.createChildFolder.bind(this)
     this.requestDropbox = this.requestDropbox.bind(this)
     this.onOpenDialogEditNameFolder = this.onOpenDialogEditNameFolder.bind(this)
-    this.editNameFolder = this.editNameFolder.bind(this)
+    this.editChildFolderName = this.editChildFolderName.bind(this)
 
     this.dbx = new Dropbox({
       accessToken: 'JTwqPF5csEAAAAAAAAAAASLyTdRylz2jdvwIQxk8rZ1XqqEx4Pg2toXYb4nIFtMB'
@@ -46,7 +46,7 @@ export default class RecordDetail extends Component {
       isDialogFolderFormVisible: false,
       isDialogRenameFolderFormVisible: false,
       previewPath: null,
-      entry: {},
+      dropboxEntry: null
     }
   }
 
@@ -114,6 +114,36 @@ export default class RecordDetail extends Component {
     })
   }
 
+  uploadFile(file) {
+    this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
+      this.onCloseDialogUpload()
+      this.getDropboxEntries(this.state.currentPathLower)
+    })
+  }
+
+  createChildFolder(name: string) {
+    this.setState({isDialogFolderFormVisible: false})
+    this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
+      alert( `Folder ${name} has been created successfully`)
+      this.getDropboxEntries(this.state.currentPathLower)
+    }, (error) => {
+      alert('Error while creating folder, please double check the folder name')
+    })
+  }
+
+  editChildFolderName(dropboxEntry: any, newName: string) {
+    this.setState({isDialogRenameFolderFormVisible: false})
+
+    this.requestDropbox('filesMove', {
+      from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
+      to_path: `${this.state.currentPathLower}/${newName}`
+    }, (response) => {
+      this.getDropboxEntries(this.state.currentPathLower)
+    }, (error) => {
+      alert('Error while creating folder, please double check the folder name')
+    })
+  }
+
   onCloseDialogPreview() {
     this.setState({
       isDialogPreviewVisible: false
@@ -127,41 +157,18 @@ export default class RecordDetail extends Component {
   }
 
   showCreateNewFolderForm() {
-    this.setState({isDialogFolderFormVisible: true})
-  }
-
-  uploadFile(file) {
-    this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
-      this.onCloseDialogUpload()
-      this.getDropboxEntries(this.state.currentPathLower)
-    })
-  }
-
-  createOrUpdateFolder(name) {
-    this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`, autorename: true }, (dbxResponse) => {
-      this.setState({isDialogFolderFormVisible: false})
-      this.getDropboxEntries(this.state.currentPathLower)
+    this.setState({
+      isDialogFolderFormVisible: true,
+      dropboxEntry: null
     })
   }
 
   onOpenDialogEditNameFolder(dropboxEntry) {
     this.setState({
       isDialogRenameFolderFormVisible: true,
-      entry: dropboxEntry
+      dropboxEntry: dropboxEntry
     })
   }
-
-  editNameFolder(name) {
-    this.dbx.filesMove({
-      from_path	: `${this.state.currentPathLower}/${this.state.entry.name}`,
-      to_path	: `${this.state.currentPathLower}/${name}`,
-      autorename: true
-    }).then((response) => {
-      this.setState({isDialogRenameFolderFormVisible: false})
-      this.getDropboxEntries(this.state.currentPathLower)
-    })
-  }
-
 
   render() {
     const {
@@ -301,16 +308,12 @@ export default class RecordDetail extends Component {
         </div>
 
         <div className="folder-form-dialog-wrapper">
-          {
-            isDialogRenameFolderFormVisible && (
-              <FolderFormDialog
-                isVisible={isDialogRenameFolderFormVisible}
-                entry={this.state.entry}
-                editNameFolder={this.editNameFolder}
-                onCloseDialog={() => this.setState({isDialogRenameFolderFormVisible: false})}
-              />
-            )
-          }
+          <FolderFormDialog
+            isVisible={isDialogRenameFolderFormVisible}
+            dropboxEntry={this.state.dropboxEntry}
+            editChildFolderName={this.editChildFolderName}
+            onCloseDialog={() => this.setState({isDialogRenameFolderFormVisible: false})}
+          />
         </div>
 
         <div className="file-upload-dialog-wrapper">
@@ -324,7 +327,7 @@ export default class RecordDetail extends Component {
         <div className="folder-form-dialog-wrapper">
           <FolderFormDialog
             isVisible={isDialogFolderFormVisible}
-            createOrUpdateFolder={this.createOrUpdateFolder}
+            createChildFolder={this.createChildFolder}
             onCloseDialog={() => this.setState({isDialogFolderFormVisible: false})}
           />
         </div>

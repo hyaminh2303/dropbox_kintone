@@ -14,51 +14,41 @@ export default class FolderFormDialog extends Component {
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     // this code for update
+    if (nextProps.dropboxEntry) {
+      this.setState({folderName: nextProps.dropboxEntry.name})
+    } else {
       this.setState({folderName: ''})
+    }
   }
 
-  renderContent(entry) {
+  renderContent() {
+    const { folderName } = this.state
     return(
       <div className="folder-name-input-wraper">
         {
-          !!entry
-            ?
           <TextField
-            id="outlined-basic"
             label="Folder Name"
             variant="outlined"
-            defaultValue={!!entry ? entry.name : ""}
-            onChange={(event) => {this.setState({folderName: event.target.value})}}
+            value={folderName}
+            onChange={(event) => { this.setState({folderName: event.target.value}) }}
           />
-            :
-          <TextField
-            id="outlined-basic"
-            label="Folder Name"
-            variant="outlined"
-            value={this.state.folderName}
-            onChange={(event) => {this.setState({folderName: event.target.value,}), this.value = this.state.folderName}}
-          />
-
         }
       </div>
     )
   }
 
   createOrUpdateFolder() {
-    const { entry} = this.props
-    !!entry
-      ?
-    this.props.editNameFolder(this.state.folderName)
-      :
-    this.props.createOrUpdateFolder(this.state.folderName)
+    const { dropboxEntry, editChildFolderName, createChildFolder } = this.props
+    const { folderName } = this.state
+    !!dropboxEntry ? editChildFolderName(dropboxEntry, folderName) : createChildFolder(folderName)
   }
 
   render() {
-    const { isVisible, onCloseDialog, entry } = this.props
+    const { isVisible, onCloseDialog } = this.props
     return(
       <Dialog
         showCloseButton={true}
-        content={this.renderContent(entry)}
+        content={this.renderContent()}
         footer={
           <Button variant="contained" color="primary" onClick={() => {this.createOrUpdateFolder()}}>
             Save

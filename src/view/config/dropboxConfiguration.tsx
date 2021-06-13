@@ -34,7 +34,6 @@ export default class DropboxConfiguration extends Component {
   render() {
     const { config, state, setValueInput } = this.props;
 
-    console.log(state)
     return (
       <div>
         <a

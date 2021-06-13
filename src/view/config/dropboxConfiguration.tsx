@@ -3,7 +3,7 @@ import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
-import { getRootConfigurationRecord, updateRootRecord, addRootRecord } from '../../utils/recordsHelper'
+import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord } from '../../utils/recordsHelper'
 import './style.sass'
 
 const  ROOT_FOLDER = ""
@@ -42,99 +42,199 @@ export default class DropboxConfiguration extends Component {
     if (appKeyValue === '' || accessToken === '' || selectedField === '') {
       alert('All field is requied!')
     } else {
-      this.dbx = new Dropbox({ accessToken: accessToken })
-      await this.findOrCreateRootFolder()
-      // this.props.setPluginConfig({
-      //   appKeyValue: appKeyValue,
-      //   accessToken: accessToken,
-      //   selectedField: selectedField,
-      //   dropbox_configuration_app_id: dropbox_configuration_app_id
-      // })
 
-      // const restClient = new KintoneRestAPIClient();
+      const createFolderResponse = await this.findOrCreateRootFolder()
+      if (!!createFolderResponse['errorCode']) { return }
 
+      this.props.setPluginConfig({
+        appKeyValue: appKeyValue,
+        accessToken: accessToken,
+        selectedField: selectedField,
+        dropbox_configuration_app_id: dropbox_configuration_app_id
+      })
 
-      // const records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+      const restClient = new KintoneRestAPIClient();
+      const records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
 
-      // const childFolderPaths = records.map((record) => {
-      //   return `${rootPath}/${record[selectedField].value || ''}[${record['$id'].value}]`
-      // })
-      // console.log(123123)
-      // console.log(childFolderPaths)
-      // await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
+      const childFolders = records.map((record) => {
+        return {
+          id: record['$id'].value,
+          name: `${record[selectedField].value || ''}[${record['$id'].value}]`
+        }
+      })
+
+      const childFolderPaths = childFolders.map((folder) => {
+        return `${createFolderResponse['path']}/${folder.name}`
+      })
+
+      if (createFolderResponse['actionType'] == 'create') {
+        await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
+        const filesListFolderResponse = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
+        await filesListFolderResponse.result.entries.map(async (entry) => {
+          console.log(entry)
+          const folderRecord = find(childFolders, { name: entry.name })
+          await addChildFolderRecord(
+            dropbox_configuration_app_id,
+            folderName,
+            entry.id,
+            folderRecord.id,
+            entry.name
+          )
+        })
+      }
 
     }
   }
 
   async findOrCreateRootFolder() {
-    const { folderName, dropbox_configuration_app_id } = this.state;
-    console.log(dropbox_configuration_app_id)
+    const { folderName, dropbox_configuration_app_id, accessToken } = this.state;
+    const configurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
 
-    getRootConfigurationRecord(dropbox_configuration_app_id).then((configurationRecord: any) => {
-      this.dbx = new Dropbox({ accessToken: accessToken });
-      // Get root folder name on Dropbox
-      this.dbx.filesGetMetadata({path: configurationRecord.dropbox_folder_id.value}).then((response: any) => {
-        if (folderName != response.result.name) {
-          // If the folder name has been changed
-          this.setState({ folderName: response.result.name })
-          const currentRootPath = `${ROOT_FOLDER}/${response.result.name}`
-          const newRootPath = `${ROOT_FOLDER}/${folderName}`
-          this.dbx.filesMove({ from_path: currentRootPath, to_path: newRootPath }).then((filesMoveResp: any) => {
-            // If rename success, then update root folder name in configuration app
-            updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
-              root_folder_name: { value: filesMoveResp.result.name }
-            })
-          }).catch((error) => {
-            alert('Cannot rename folder, please check the name')
-          })
-        }
-      }).catch(async (error: any) => {
-        if (error.status == 409) {
-          // If the folder doesnt exist
-          const rootPath = `${ROOT_FOLDER}/${folderName}`
-          const createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath })
-          addRootRecord(dropbox_configuration_app_id, folderName, createFolderResponse.result.id)
-        } else if (error.status == 400) {
-          alert('Please enter correct access token')
+    if (!!configurationRecord && !!configurationRecord['errorCode']) {
+      // this mean wrong dropbox_configuration_app_id
+
+      alert(configurationRecord['message'])
+      return {
+        errorCode: configurationRecord['errorCode']
+      }
+    }
+
+    this.dbx = new Dropbox({ accessToken: accessToken });
+
+    const authResponse = await this.dbx.filesListFolder({path: ''}).catch((error) => {
+      return {
+        errorCode: 'invalidDropboxAccessToken'
+      }
+    })
+
+    if (authResponse['errorCode'] == 'invalidDropboxAccessToken') {
+      alert('Please enter correct Dropbox access token')
+      return {
+        errorCode: authResponse['errorCode']
+      }
+    }
+
+    if (!!configurationRecord) {
+      // need to update folder name
+      console.log('Action Update')
+
+      const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
+      const metadataResponse = await this.dbx.filesGetMetadata({ path: dropboxFolderId }).catch((error) => {
+        return {
+          errorCode: 'notFoundFolderOnDropbox'
         }
       })
-    }).catch((error: any) => {
-      console.log(error)
-      alert('Please enter correct configuration app id!')
-    })
+      console.log('metadataResponse')
+      console.log(metadataResponse)
+      if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
+        // need to re-create folder here, because it was deleted on drobox
+      }
+      console.log(folderName)
+      console.log(metadataResponse.result.name)
+      const currentRootPath = `${ROOT_FOLDER}/${metadataResponse.result.name}`;
+
+      if (folderName != metadataResponse.result.name) {
+        const newRootPath = `${ROOT_FOLDER}/${folderName}`;
+
+        const filesMoveResponse = await this.dbx.filesMove({ from_path: currentRootPath, to_path: newRootPath }).catch((error: any) => {
+          return {
+            errorCode: 'invalidNewName'
+          }
+        })
+
+        if (filesMoveResponse['errorCode'] == 'invalidNewName') {
+          alert('Invalid name, it might be duplicated with other folder')
+          return {
+            errorCode: authResponse['errorCode']
+          }
+        }
+
+        updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+          root_folder_name: { value: filesMoveResponse.result.name }
+        })
+
+        console.log('Updated folder')
+
+        return {
+          actionType: 'edit',
+          path: newRootPath
+        }
+      } else {
+        return {
+          actionType: 'edit',
+          path: currentRootPath
+        }
+      }
+
+    } else {
+      // Need to create new folder
+      console.log('Action Create')
+
+      const rootPath = `${ROOT_FOLDER}/${folderName}`
+      const createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath }).catch((error: any) => {
+        return {
+          errorCode: 'invalidFolderName'
+        }
+      })
+
+      if (createFolderResponse['errorCode'] == 'invalidFolderName') {
+        alert('Cannot create folder, please check the folder name. It might be duplicated!')
+        return {
+          errorCode: createFolderResponse['errorCode']
+        }
+      }
+
+      await addRootRecord(dropbox_configuration_app_id, folderName, createFolderResponse.result.id)
+
+      console.log('Created folder')
+
+      return {
+        actionType: 'create',
+        path: rootPath
+      }
+    }
   }
 
   UNSAFE_componentWillMount() {
-    // Get Root Folder
-    const { dropbox_configuration_app_id, accessToken } = this.props;
+    (async () => {
+      // Get Root Folder
+      const { dropbox_configuration_app_id, accessToken } = this.props;
 
-    if (!accessToken && !dropbox_configuration_app_id) {
-      return;
-    }
-
-    getRootConfigurationRecord(dropbox_configuration_app_id).then((configurationRecord: any) => {
-      if (!!configurationRecord) {
-        this.dbx = new Dropbox({ accessToken: accessToken });
-
-        // Get root folder name on Dropbox
-        this.dbx.filesGetMetadata({path: configurationRecord.dropbox_folder_id.value}).then((response: any) => {
-          this.setState({ folderName: response.result.name })
-
-          // Update root folder name in configuration app
-          updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
-            root_folder_name: { value: response.result.name }
-          })
-        }).catch((error: any) => {
-          if (error.status == 409) {
-            alert('Cannot find dropbox folder on Dropbox, it might be deleted')
-          } else if (error.status == 400) {
-            alert('Please enter correct access token')
-          }
-        })
+      if (!accessToken && !dropbox_configuration_app_id) {
+        return;
       }
-    }).catch((error: any) => {
-      alert('Please enter correct configuration app id!')
-    })
+
+      const configurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
+
+      if (!!configurationRecord && !!configurationRecord['errorCode']) {
+        // this mean wrong dropbox_configuration_app_id
+        alert('Please enter correct configuration app id!')
+        return;
+      }
+
+      if (!configurationRecord) {
+        // this mean first setup plugin
+        return;
+      }
+
+      this.dbx = new Dropbox({ accessToken: accessToken });
+      const dropboxFolderId = configurationRecord.dropbox_folder_id.value
+      const metadataResponse = await this.dbx.filesGetMetadata({path: dropboxFolderId}).catch((error: any) => {
+        return {
+          errorCode: 'notFoundFolderOnDropbox'
+        }
+      })
+
+      if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
+        // need to re-create folder here, because it was deleted on drobox
+        return ;
+      }
+
+      this.setState({ folderName: metadataResponse.result.name })
+      updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+        root_folder_name: { value: metadataResponse.result.name }
+      })
+    })()
   }
 
   render() {

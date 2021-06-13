@@ -12,131 +12,84 @@ class PluginSettings extends Component {
   constructor(props) {
     super(props)
 
-    this.setStateValue = this.setStateValue.bind(this);
-    this.setConfig = this.setConfig.bind(this);
-    this.checkName = this.checkName.bind(this);
+    this.setPluginConfig = this.setPluginConfig.bind(this);
 
     this.state = {
       activatedTab: 'config_app',
       appKeyValue: '',
       accessToken: '',
-      folderName: '',
-      folderId: '',
       licenseKey: '',
       selectedField: '',
+      folderName: '',
+      dropbox_configuration_app_id: '',
       formFields: [{
         label: 'Please select',
         value: '',
         isDisabled: false
-      }],
-    }
-
-    this.dbx = null;
-  }
-
-  setStateValue(value: any, typeOfSetState: string) {
-    if(typeOfSetState === 'appKeyValue') {
-      this.setState({appKeyValue: value})
-    } else if(typeOfSetState === 'accessToken') {
-      this.setState({accessToken: value})
-    } else if(typeOfSetState === 'folderName') {
-      this.setState({folderName: value})
-    } else if(typeOfSetState === 'licenseKey') {
-      this.setState({licenseKey: value})
-    } else if(typeOfSetState === 'dropdownSpecifiedField') {
-      this.setState({selectedField: value})
-    } else if(typeOfSetState === 'folderId') {
-      this.setState({folderId: value})
+      }]
     }
   }
 
-  setConfig() {
-    const { folderName, selectedField, appKeyValue,
-            accessToken, licenseKey, folderId
-          } = this.state;
-
-    kintone.plugin.app.setConfig({
-      appKeyValue: appKeyValue,
-      accessToken: accessToken,
-      folderName: folderName,
-      selectedField: selectedField,
-      licenseKey: licenseKey,
-      folderId: folderId
+  setPluginConfig(values: any) {
+    const { pluginId } = this.props
+    const currentConfig = kintone.plugin.app.getConfig(pluginId)
+    const newConfig = Object.assign(currentConfig, values)
+    kintone.plugin.app.setConfig(newConfig, () => {
+      return false;
     })
   }
 
-  checkName() {
-    const { appKeyValue, accessToken, folderName, folderId } = this.state;
-    this.dbx = new Dropbox({ accessToken: accessToken || '' });
-
-    if(appKeyValue !== '' && accessToken !== '' && folderId !== '') {
-      this.dbx.filesListFolder({
-        path: '',
-      }).then((response: any) => {
-        const { result } = response;
-        const currentFolderOnDropbox = result.entries.filter(item => item.id === folderId);
-
-        if(currentFolderOnDropbox.length !== 0) {
-          if(currentFolderOnDropbox[0].name !== folderName) {
-            const question = confirm('Folder name on Dropbox has been changed. Do you want to update the folder name again?')
-            if(question) {
-              this.setStateValue(currentFolderOnDropbox[0].name, 'folderName')
-              this.setConfig();
-            }
-          }
-        }
-      })
-    }
-  }
-
-  async UNSAFE_componentWillMount() {
+  UNSAFE_componentWillMount() {
     const { pluginId } = this.props;
     const config = kintone.plugin.app.getConfig(pluginId);
-
-    const restClient = new KintoneRestAPIClient();
-    const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
-
-    let arrayFields: any = [];
-    const fieldsOfSystem = ['作業者', 'ステータス', 'カテゴリー']
-    forEach(responseFormFields.properties, (fieldCode: string, fieldKey: any) => {
-      if(!fieldsOfSystem.includes(fieldCode.label)) {
-        arrayFields.push({ label: fieldCode.label, value: fieldCode.code, isDisabled: false });
-      }
-    })
-
-    arrayFields.unshift({
-      label: 'Please select',
-      value: '',
-      isDisabled: false
-    })
-
-    let sameFieldsInConfig = arrayFields.filter(item => {
-      return item.value === config.selectedField;
-    })
-
-    if(sameFieldsInConfig.length === 0) {
-      alert('The specified code file was not found. The program will automatically specify the field code to default.');
-      kintone.plugin.app.setConfig({
-        appKeyValue: config.appKeyValue || '',
-        accessToken: config.accessToken || '',
-        folderName: config.folderName || '',
-        selectedField: '',
-        licenseKey: config.licenseKey || '',
-        folderId: config.folderId || '',
-      })
-    }
 
     this.setState({
       appKeyValue: config.appKeyValue || '',
       accessToken: config.accessToken || '',
-      folderName: config.folderName || '',
       licenseKey: config.licenseKey || '',
       selectedField: config.selectedField || '',
-      folderId: config.folderId || '',
-      formFields: arrayFields,
-    }, () => {
-      this.checkName();
+      dropbox_configuration_app_id: config.dropbox_configuration_app_id,
+      formFields: [{
+        label: config.selectedField || '',
+        value: config.selectedField || '',
+        isDisabled: false
+      }]
     });
+  }
+
+  componentDidMount() {
+    (async () => {
+      const { selectedField } = this.state;
+
+      const restClient = new KintoneRestAPIClient();
+      const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
+
+      let arrayFields: any = [];
+      forEach(responseFormFields.properties, (fieldCode: string, fieldKey: any) => {
+        arrayFields.push({
+          label: fieldCode.label,
+          value: fieldCode.code,
+          isDisabled: false
+        });
+      })
+
+      arrayFields.unshift({
+        label: 'Please select',
+        value: '',
+        isDisabled: false
+      })
+
+      if (arrayFields.filter((i) => { return (i.value == selectedField) }).length == 0) {
+        console.log(7612372157351)
+        arrayFields.push({
+          label: selectedField || '',
+          value: selectedField || '',
+          isDisabled: false
+        })
+      }
+
+      this.setState({ formFields: arrayFields });
+    })()
   }
 
   render() {
@@ -161,15 +114,12 @@ class PluginSettings extends Component {
           ?
             <DropboxConfiguration
               {...this.state}
-              setStateValue={this.setStateValue}
-              setConfig={this.setConfig}
+              setPluginConfig={this.setPluginConfig}
               pluginId={pluginId}
             />
           :
             <License
               {...this.state}
-              setStateValue={this.setStateValue}
-              setConfig={this.setConfig}
             />
         }
 

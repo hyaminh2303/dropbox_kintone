@@ -14,23 +14,37 @@ export default class FolderFormDialog extends Component {
 
   UNSAFE_componentWillReceiveProps(nextProps) {
     // this code for update
+    if (nextProps.dropboxEntry) {
+      this.setState({folderName: nextProps.dropboxEntry.name})
+    } else {
+      this.setState({folderName: ''})
+    }
   }
 
   renderContent() {
+    const { folderName } = this.state
     return(
       <div className="folder-name-input-wraper">
-        <TextField id="outlined-basic" label="Folder Name" variant="outlined" onChange={(event) => this.setState({folderName: event.target.value})}/>
+        {
+          <TextField
+            label="Folder Name"
+            variant="outlined"
+            value={folderName}
+            onChange={(event) => { this.setState({folderName: event.target.value}) }}
+          />
+        }
       </div>
     )
   }
 
   createOrUpdateFolder() {
-    this.props.createOrUpdateFolder(this.state.folderName)
+    const { dropboxEntry, editChildFolderName, createChildFolder } = this.props
+    const { folderName } = this.state
+    !!dropboxEntry ? editChildFolderName(dropboxEntry, folderName) : createChildFolder(folderName)
   }
 
   render() {
     const { isVisible, onCloseDialog } = this.props
-
     return(
       <Dialog
         showCloseButton={true}

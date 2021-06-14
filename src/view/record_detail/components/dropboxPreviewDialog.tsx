@@ -19,15 +19,17 @@ export default class DropboxPreviewDialog extends Component {
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
-    var options = {
-      // Shared link to Dropbox file
-      link: nextProps.previewPath,
-      file: {
-        // Sets the zoom mode for embedded files. Defaults to 'best'.
-        zoom: "best" // or "fit"
+    if (!!nextProps.previewPath) {
+      var options = {
+        // Shared link to Dropbox file
+        link: nextProps.previewPath,
+        file: {
+          // Sets the zoom mode for embedded files. Defaults to 'best'.
+          zoom: "best" // or "fit"
+        }
       }
+      Dropbox.embed(options, document.getElementById('preview-file'));
     }
-    Dropbox.embed(options, document.getElementById('preview-file'));
   }
 
   render() {

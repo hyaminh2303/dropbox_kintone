@@ -250,7 +250,8 @@ export default class RecordDetail extends Component {
 
   onCloseDialogPreview() {
     this.setState({
-      isDialogPreviewVisible: false
+      isDialogPreviewVisible: false,
+      previewPath:null
     })
   }
 

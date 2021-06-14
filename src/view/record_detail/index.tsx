@@ -4,7 +4,6 @@ import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder, faPen } from '@fort
 import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
-import swal from 'sweetalert';
 
 
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
@@ -17,6 +16,12 @@ import {
   updateRootRecord,
   addChildFolderRecord
 } from '../../utils/recordsHelper'
+import {
+  showNotificationSuccess,
+  showNotificationError,
+  showConfirm,
+  getStateOfSwal
+} from '../../utils/notifications'
 
 import './style.sass'
 import { ControlPointDuplicateTwoTone } from '@material-ui/icons';
@@ -202,13 +207,13 @@ export default class RecordDetail extends Component {
   onCopyLink(dropboxEntry) {
     this.requestDropbox('sharingCreateSharedLink', { path: dropboxEntry.path_lower }, (dbxResponse) => {
       navigator.clipboard.writeText(dbxResponse.result.url)
-      swal("Success", "Copied the link", "success")
+      showNotificationSuccess("file has been copied successfully")
     })
   }
 
   onDeleteFile(dropboxEntry) {
     this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
-      swal("Success", `${dropboxEntry['.tag']} has been deleted successfully`, "success")
+      showNotificationSuccess(`${dropboxEntry['.tag']} has been deleted successfully`)
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -223,7 +228,7 @@ export default class RecordDetail extends Component {
   uploadFile(file) {
     this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
       this.onCloseDialogUpload()
-      swal("Success", `File has been uploaded successfully`, "success")
+      showNotificationSuccess("file has been uploaded successfully")
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -231,15 +236,10 @@ export default class RecordDetail extends Component {
   createChildFolder(name: string) {
     this.setState({isDialogFolderFormVisible: false})
     this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
-      swal("Success", `Folder ${name} has been created successfully`, "success")
+      showNotificationSuccess(`${name} has been created successfully`)
       this.getDropboxEntries(this.state.currentPathLower)
     }, (error) => {
-      swal({
-        title: "Error",
-        text: 'Error while creating folder, please double check the folder name',
-        icon: "warning",
-        dangerMode: true
-      })
+      showNotificationError('Error while creating folder, please double check the folder name')
     })
   }
 
@@ -250,15 +250,10 @@ export default class RecordDetail extends Component {
         from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
         to_path: `${this.state.currentPathLower}/${newName}`
       }, (response) => {
-        swal("Success", `Folder ${newName} has been renamed successfully`, "success")
+        showNotificationSuccess(`${newName} has been renamed successfully`)
         this.getDropboxEntries(this.state.currentPathLower)
       }, (error) => {
-        swal({
-          title: "Error",
-          text: 'Error while renaming folder, please double check the folder name',
-          icon: "warning",
-          dangerMode: true
-        })
+        showNotificationError('Error while renaming folder, please double check the folder name')
       })
     }
   }
@@ -374,7 +369,7 @@ export default class RecordDetail extends Component {
                         }
 
                         <Button
-                          onClick={() => this.onDeleteFile(dropboxEntry)}
+                          onClick={() => {showConfirm()}}
                           variant="contained"
                           startIcon={ <FontAwesomeIcon icon={faTrash} className="fa btn-icon"/> }
                           color="secondary"

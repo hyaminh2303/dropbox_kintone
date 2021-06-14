@@ -71,7 +71,6 @@ export default class RecordDetail extends Component {
     const rootPath = response['path']
 
     this.setState({ currentPathLower: rootPath, currentPathDisplay: rootPath }, () => {
-      console.log(rootPath)
       this.getDropboxEntries(rootPath)
     })
   }

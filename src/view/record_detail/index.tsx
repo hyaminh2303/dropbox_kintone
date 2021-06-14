@@ -4,6 +4,7 @@ import { faUpload, faPlus, faTrash, faCopy, faEye, faFolder, faPen } from '@fort
 import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
+import swal from 'sweetalert';
 
 
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
@@ -201,11 +202,13 @@ export default class RecordDetail extends Component {
   onCopyLink(dropboxEntry) {
     this.requestDropbox('sharingCreateSharedLink', { path: dropboxEntry.path_lower }, (dbxResponse) => {
       navigator.clipboard.writeText(dbxResponse.result.url)
+      swal("Success", "Copied the link", "success")
     })
   }
 
   onDeleteFile(dropboxEntry) {
     this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
+      swal("Success", `${dropboxEntry['.tag']} has been deleted successfully`, "success")
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -220,6 +223,7 @@ export default class RecordDetail extends Component {
   uploadFile(file) {
     this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
       this.onCloseDialogUpload()
+      swal("Success", `File has been uploaded successfully`, "success")
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -227,24 +231,36 @@ export default class RecordDetail extends Component {
   createChildFolder(name: string) {
     this.setState({isDialogFolderFormVisible: false})
     this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
-      alert( `Folder ${name} has been created successfully`)
+      swal("Success", `Folder ${name} has been created successfully`, "success")
       this.getDropboxEntries(this.state.currentPathLower)
     }, (error) => {
-      alert('Error while creating folder, please double check the folder name')
+      swal({
+        title: "Error",
+        text: 'Error while creating folder, please double check the folder name',
+        icon: "warning",
+        dangerMode: true
+      })
     })
   }
 
   editChildFolderName(dropboxEntry: any, newName: string) {
     this.setState({isDialogRenameFolderFormVisible: false})
-
-    this.requestDropbox('filesMove', {
-      from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
-      to_path: `${this.state.currentPathLower}/${newName}`
-    }, (response) => {
-      this.getDropboxEntries(this.state.currentPathLower)
-    }, (error) => {
-      alert('Error while creating folder, please double check the folder name')
-    })
+    if(dropboxEntry.name !== newName) {
+      this.requestDropbox('filesMove', {
+        from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
+        to_path: `${this.state.currentPathLower}/${newName}`
+      }, (response) => {
+        swal("Success", `Folder ${newName} has been renamed successfully`, "success")
+        this.getDropboxEntries(this.state.currentPathLower)
+      }, (error) => {
+        swal({
+          title: "Error",
+          text: 'Error while renaming folder, please double check the folder name',
+          icon: "warning",
+          dangerMode: true
+        })
+      })
+    }
   }
 
   onCloseDialogPreview() {

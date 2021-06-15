@@ -3,6 +3,8 @@ import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
+
+import { showNotificationError } from '../../utils/notifications'
 import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord } from '../../utils/recordsHelper'
 import './style.sass'
 import { ids } from 'webpack';
@@ -46,7 +48,7 @@ export default class DropboxConfiguration extends Component {
     } = this.state;
 
     if (accessToken === '' || selectedField === '') {
-      alert('All field is requied!')
+      showNotificationError('All field is requied!')
     } else {
 
       const createFolderResponse = await this.findOrCreateRootFolder()
@@ -119,7 +121,7 @@ export default class DropboxConfiguration extends Component {
     if (!!configurationRecord && !!configurationRecord['errorCode']) {
       // this mean wrong dropbox_configuration_app_id
 
-      alert(configurationRecord['message'])
+      showNotificationError(configurationRecord['message'])
       return {
         errorCode: configurationRecord['errorCode']
       }
@@ -134,7 +136,7 @@ export default class DropboxConfiguration extends Component {
     })
 
     if (authResponse['errorCode'] == 'invalidDropboxAccessToken') {
-      alert('Please enter correct Dropbox access token')
+      showNotificationError('Please enter correct Dropbox access token')
       return {
         errorCode: authResponse['errorCode']
       }
@@ -169,7 +171,7 @@ export default class DropboxConfiguration extends Component {
         })
 
         if (filesMoveResponse['errorCode'] == 'invalidNewName') {
-          alert('Invalid name, it might be duplicated with other folder')
+          showNotificationError('Invalid name, it might be duplicated with other folder')
           return {
             errorCode: authResponse['errorCode']
           }
@@ -213,7 +215,7 @@ export default class DropboxConfiguration extends Component {
         })
 
         if (createFolderResponse['errorCode'] == 'invalidFolderName') {
-          alert('Cannot create folder, please check the folder name. It might be duplicated!')
+          showNotificationError('Cannot create folder, please check the folder name. It might be duplicated!')
           return {
             errorCode: createFolderResponse['errorCode']
           }
@@ -286,7 +288,7 @@ export default class DropboxConfiguration extends Component {
 
       if (!!configurationRecord && !!configurationRecord['errorCode']) {
         // this mean wrong dropbox_configuration_app_id
-        alert('Please enter correct configuration app id!')
+        showNotificationError('Please enter correct configuration app id!')
         return;
       }
 

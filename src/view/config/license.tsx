@@ -1,6 +1,7 @@
 import React, { Component } from 'react'
 import { Text, Label } from '@kintone/kintone-ui-component'
 
+import { showNotificationError } from '../../utils/notifications'
 import './style.sass'
 
 
@@ -43,7 +44,7 @@ export default class License extends Component {
               className="kintoneplugin-button-dialog-ok btn-action"
               onClick={() => {
                 if(accessToken === '' || folderName === '' || selectedField === '') {
-                  alert('All field is requied!')
+                  showNotificationError('All field is requied!')
                 } else {
                   setConfig()
                 }

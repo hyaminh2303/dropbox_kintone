@@ -1,11 +1,10 @@
 import React, { Component } from 'react'
-
 import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
-import { showNotificationError } from '../../utils/notifications'
 
+import { showNotificationError } from '../../utils/notifications'
 import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord } from '../../utils/recordsHelper'
 import './style.sass'
 

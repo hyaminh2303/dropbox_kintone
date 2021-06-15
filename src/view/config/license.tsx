@@ -1,7 +1,7 @@
 import React, { Component } from 'react'
 import { Text, Label } from '@kintone/kintone-ui-component'
-import { showNotificationError } from '../../utils/notifications'
 
+import { showNotificationError } from '../../utils/notifications'
 import './style.sass'
 
 

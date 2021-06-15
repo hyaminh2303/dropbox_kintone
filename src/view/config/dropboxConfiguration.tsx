@@ -5,6 +5,7 @@ import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
 import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord } from '../../utils/recordsHelper'
 import './style.sass'
+import { ids } from 'webpack';
 
 const  ROOT_FOLDER = ""
 export default class DropboxConfiguration extends Component {
@@ -13,6 +14,7 @@ export default class DropboxConfiguration extends Component {
     this.findOrCreateRootFolder = this.findOrCreateRootFolder.bind(this)
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
+    this.handleGetMembers = this.handleGetMembers.bind(this);
 
     this.dbx = null;
     this.state = {
@@ -20,7 +22,14 @@ export default class DropboxConfiguration extends Component {
       folderName: props.folderName,
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
       licenseKey: props.licenseKey,
-      selectedField: props.selectedField
+      selectedField: props.selectedField,
+      membersList: [{
+        label: 'Please select',
+        value: '',
+        isDisabled: false
+      }],
+      memberId: '',
+      isDropboxBusinessAPI: false,
     }
   }
 
@@ -49,35 +58,56 @@ export default class DropboxConfiguration extends Component {
         dropbox_configuration_app_id: dropbox_configuration_app_id
       })
 
-      const restClient = new KintoneRestAPIClient();
-      const records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
-
-      const childFolders = records.map((record) => {
-        return {
-          id: record['$id'].value,
-          name: `${record[selectedField].value || ''}[${record['$id'].value}]`
-        }
-      })
-
-      const childFolderPaths = childFolders.map((folder) => {
-        return `${createFolderResponse['path']}/${folder.name}`
-      })
-
+      let recordIds: any = [];
       if (createFolderResponse['actionType'] == 'create') {
-        await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
-        const filesListFolderResponse = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
-        await filesListFolderResponse.result.entries.map(async (entry) => {
-          console.log(entry)
-          const folderRecord = find(childFolders, { name: entry.name })
+        // if create configuration record for the record which is already had dropbox folder
+        const existingFolderOnDropbox = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
+        console.log("existingFolderOnDropbox", existingFolderOnDropbox)
+        existingFolderOnDropbox.result.entries.map(async (entry) => {
+          recordIds.push(`"${entry.name}"`)
           await addChildFolderRecord(
             dropbox_configuration_app_id,
             folderName,
             entry.id,
-            folderRecord.id,
+            entry.name,
             entry.name
           )
         })
       }
+      console.log("recordIds", recordIds)
+
+      const restClient = new KintoneRestAPIClient();
+      console.log(recordIds.join(','))
+      const records = await restClient.record.getAllRecords({ app: kintone.app.getId(), condition: `$id not in (${recordIds.join(',')})` });
+      console.log('records', records)
+
+      // const childFolders = records.map((record) => {
+      //   return {
+      //     id: record['$id'].value,
+      //     name: `${record[selectedField].value || ''}[${record['$id'].value}]`
+      //   }
+      // })
+
+      // const childFolderPaths = childFolders.map((folder) => {
+      //   return `${createFolderResponse['path']}/${folder.name}`
+      // })
+
+      // if (createFolderResponse['actionType'] == 'create') {
+      //   const filesListFolderResponse = await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
+      //   console.log("filesListFolderResponse", filesListFolderResponse)
+      //   // const filesListFolderResponse = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
+      //   await filesListFolderResponse.result.entries.map(async (entry) => {
+      //     console.log(entry)
+      //     const folderRecord = find(childFolders, { name: entry.name })
+      //     await addChildFolderRecord(
+      //       dropbox_configuration_app_id,
+      //       folderName,
+      //       entry.id,
+      //       folderRecord.id,
+      //       entry.name
+      //     )
+      //   })
+      // }
 
     }
   }
@@ -206,6 +236,43 @@ export default class DropboxConfiguration extends Component {
     }
   }
 
+  handleGetMembers() {
+    const { accessToken, membersList } = this.state;
+    if(accessToken !== "") {
+      this.dbx = new Dropbox({ accessToken: accessToken });
+      this.dbx.teamMembersList({
+        limit: 100,
+        include_removed: false,
+      }).then(response => {
+        const { result: { members } } = response;
+        members.forEach(member => {
+          const param = {
+            label: `${member.profile.name.display_name}<${member.profile.email}>`,
+            value: member.profile.team_member_id,
+            isDisabled: false
+          }
+          membersList.push(param);
+        });
+
+        this.setState({
+          membersList: membersList,
+          isDropboxBusinessAPI: true,
+        })
+      }).catch((error: any) => {
+        console.log(error)
+        this.setState({
+          isDropboxBusinessAPI: false,
+          memberId: '',
+          membersList: [{
+            label: 'Please select',
+            value: '',
+            isDisabled: false
+          }],
+        })
+      })
+    }
+  }
+
   UNSAFE_componentWillMount() {
     (async () => {
       // Get Root Folder
@@ -228,6 +295,7 @@ export default class DropboxConfiguration extends Component {
         return;
       }
 
+      // selectUser: 'dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8'
       this.dbx = new Dropbox({ accessToken: accessToken });
       const dropboxFolderId = configurationRecord.dropbox_folder_id.value
       const metadataResponse = await this.dbx.filesGetMetadata({path: dropboxFolderId}).catch((error: any) => {
@@ -235,6 +303,8 @@ export default class DropboxConfiguration extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
+
+      console.log("metadataResponse", metadataResponse)
 
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // need to re-create folder here, because it was deleted on drobox
@@ -255,22 +325,47 @@ export default class DropboxConfiguration extends Component {
       accessToken,
       folderName,
       selectedField,
-      dropbox_configuration_app_id
+      dropbox_configuration_app_id,
+      membersList, memberId, isDropboxBusinessAPI
     } = this.state;
 
     return (
       <div>
         <div className="tab-content">
           <div>
-            <div className="kintoneplugin-row">
-              <Label text='Access Token' isRequired={false} />
-              <div className="input-config">
-                <Text
-                  value={accessToken}
-                  onChange={(value) => this.setState({accessToken: value})}
-                  className="kintoneplugin-input-text" />
+            <div className="kintoneplugin-row kintoneplugin-flex">
+              <div>
+                <Label text='Access Token' isRequired={false} />
+                <div className="input-config">
+                  <Text
+                    value={accessToken}
+                    onChange={(value) => this.setState({accessToken: value})}
+                    className="kintoneplugin-input-text" />
+                </div>
+              </div>
+              <div>
+              <button
+                className="kintoneplugin-button-dialog-cancel btn-get-members"
+                onClick={this.handleGetMembers}
+              >
+                Get all members
+              </button>
               </div>
             </div>
+
+            {
+              isDropboxBusinessAPI &&
+                <div className="kintoneplugin-row">
+                  <Label text='Specified member to use the user endpoints' />
+                  <div className="input-config">
+                    <Dropdown
+                      items={membersList}
+                      value={memberId}
+                      onChange={(value) => this.setState({memberId: value})}
+                    />
+                  </div>
+                </div>
+            }
 
             <div className="kintoneplugin-row">
               <Label text='Dropbox Configuration App ID' isRequired={false} />

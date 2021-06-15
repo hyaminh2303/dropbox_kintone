@@ -167,20 +167,35 @@ export default class DropboxConfiguration extends Component {
       console.log('Action Create')
 
       const rootPath = `${ROOT_FOLDER}/${folderName}`
-      const createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath }).catch((error: any) => {
+
+      const metadataResponse = await this.dbx.filesGetMetadata({ path: rootPath }).catch((error) => {
         return {
-          errorCode: 'invalidFolderName'
+          errorCode: 'notFoundFolderOnDropbox'
         }
       })
 
-      if (createFolderResponse['errorCode'] == 'invalidFolderName') {
-        alert('Cannot create folder, please check the folder name. It might be duplicated!')
-        return {
-          errorCode: createFolderResponse['errorCode']
+      let createFolderResponse, folderId;
+      if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
+        createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath }).catch((error: any) => {
+          return {
+            errorCode: 'invalidFolderName'
+          }
+        })
+
+        if (createFolderResponse['errorCode'] == 'invalidFolderName') {
+          alert('Cannot create folder, please check the folder name. It might be duplicated!')
+          return {
+            errorCode: createFolderResponse['errorCode']
+          }
         }
+
+        folderId = createFolderResponse.result.id
+
+      } else {
+        folderId = metadataResponse.result.id
       }
 
-      await addRootRecord(dropbox_configuration_app_id, folderName, createFolderResponse.result.id)
+      await addRootRecord(dropbox_configuration_app_id, folderName, folderId)
 
       console.log('Created folder')
 

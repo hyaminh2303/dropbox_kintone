@@ -19,7 +19,7 @@ import {
 import {
   showNotificationSuccess,
   showNotificationError,
-  showConfirm,
+  showConfirm
 } from '../../utils/notifications'
 
 import './style.sass'

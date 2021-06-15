@@ -16,6 +16,11 @@ import {
   updateRootRecord,
   addChildFolderRecord
 } from '../../utils/recordsHelper'
+import {
+  showNotificationSuccess,
+  showNotificationError,
+  showConfirm
+} from '../../utils/notifications'
 
 import './style.sass'
 import { ControlPointDuplicateTwoTone } from '@material-ui/icons';
@@ -71,7 +76,6 @@ export default class RecordDetail extends Component {
     const rootPath = response['path']
 
     this.setState({ currentPathLower: rootPath, currentPathDisplay: rootPath }, () => {
-      console.log(rootPath)
       this.getDropboxEntries(rootPath)
     })
   }
@@ -202,12 +206,16 @@ export default class RecordDetail extends Component {
   onCopyLink(dropboxEntry) {
     this.requestDropbox('sharingCreateSharedLink', { path: dropboxEntry.path_lower }, (dbxResponse) => {
       navigator.clipboard.writeText(dbxResponse.result.url)
+      showNotificationSuccess("file has been copied successfully")
     })
   }
 
   onDeleteFile(dropboxEntry) {
-    this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
-      this.getDropboxEntries(this.state.currentPathLower)
+    showConfirm(() => {
+      this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
+        showNotificationSuccess(`${dropboxEntry['.tag']} has been deleted successfully`)
+        this.getDropboxEntries(this.state.currentPathLower)
+      })
     })
   }
 
@@ -221,6 +229,7 @@ export default class RecordDetail extends Component {
   uploadFile(file) {
     this.requestDropbox('filesUpload', { contents: file, path: `${this.state.currentPathLower}/${file.name}` }, (dbxResponse) => {
       this.onCloseDialogUpload()
+      showNotificationSuccess("file has been uploaded successfully")
       this.getDropboxEntries(this.state.currentPathLower)
     })
   }
@@ -228,29 +237,32 @@ export default class RecordDetail extends Component {
   createChildFolder(name: string) {
     this.setState({isDialogFolderFormVisible: false})
     this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
-      alert( `Folder ${name} has been created successfully`)
+      showNotificationSuccess(`${name} has been created successfully`)
       this.getDropboxEntries(this.state.currentPathLower)
     }, (error) => {
-      alert('Error while creating folder, please double check the folder name')
+      showNotificationError('Error while creating folder, please double check the folder name')
     })
   }
 
   editChildFolderName(dropboxEntry: any, newName: string) {
     this.setState({isDialogRenameFolderFormVisible: false})
-
-    this.requestDropbox('filesMove', {
-      from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
-      to_path: `${this.state.currentPathLower}/${newName}`
-    }, (response) => {
-      this.getDropboxEntries(this.state.currentPathLower)
-    }, (error) => {
-      alert('Error while creating folder, please double check the folder name')
-    })
+    if(dropboxEntry.name !== newName) {
+      this.requestDropbox('filesMove', {
+        from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
+        to_path: `${this.state.currentPathLower}/${newName}`
+      }, (response) => {
+        showNotificationSuccess(`${newName} has been renamed successfully`)
+        this.getDropboxEntries(this.state.currentPathLower)
+      }, (error) => {
+        showNotificationError('Error while renaming folder, please double check the folder name')
+      })
+    }
   }
 
   onCloseDialogPreview() {
     this.setState({
-      isDialogPreviewVisible: false
+      isDialogPreviewVisible: false,
+      previewPath: null
     })
   }
 

@@ -7,7 +7,8 @@ import RecordDetail from '../view/record_detail';
 
 (async PLUGIN_ID => {
   const config = kintone.plugin.app.getConfig(PLUGIN_ID);
-  const domRoot = document.createElement("div");
+  let domRoot = document.createElement("div");
+  domRoot.setAttribute("style", "background-color: #f5f5f5");
   document.body.appendChild(domRoot);
 
   class App extends Component {

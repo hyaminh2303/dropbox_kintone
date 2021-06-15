@@ -20,7 +20,6 @@ import {
   showNotificationSuccess,
   showNotificationError,
   showConfirm,
-  getStateOfSwal
 } from '../../utils/notifications'
 
 import './style.sass'
@@ -212,9 +211,11 @@ export default class RecordDetail extends Component {
   }
 
   onDeleteFile(dropboxEntry) {
-    this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
-      showNotificationSuccess(`${dropboxEntry['.tag']} has been deleted successfully`)
-      this.getDropboxEntries(this.state.currentPathLower)
+    showConfirm(() => {
+      this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
+        showNotificationSuccess(`${dropboxEntry['.tag']} has been deleted successfully`)
+        this.getDropboxEntries(this.state.currentPathLower)
+      })
     })
   }
 
@@ -369,7 +370,7 @@ export default class RecordDetail extends Component {
                         }
 
                         <Button
-                          onClick={() => {showConfirm()}}
+                          onClick={() => this.onDeleteFile(dropboxEntry)}
                           variant="contained"
                           startIcon={ <FontAwesomeIcon icon={faTrash} className="fa btn-icon"/> }
                           color="secondary"

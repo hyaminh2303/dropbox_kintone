@@ -17,20 +17,18 @@ export const showNotificationError = (message) => {
   })
 }
 
-export const showConfirm = () => {
+export const showConfirm = (onConfirm: Function) => {
   swal({
     title: "Are you sure?",
-    text: "But you will still be able to retrieve this file.",
+    text: "This entry will be deleted",
     icon: "warning",
     buttons: {
       cancel: true,
       confirm: true
     },
-  }).then((result) => {
-    console.log(result)
+  }).then((agree) => {
+    if(agree) {
+     return onConfirm()
+    }
   })
-}
-export const getStateOfSwal = () => {
-  const state = swal.getState();
-  console.log(state)
 }

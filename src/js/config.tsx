@@ -1,7 +1,6 @@
 import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
-import { Dropbox } from 'dropbox' // eslint-disable-line no-unused-vars
 import { forEach } from 'lodash'
 
 import DropboxConfiguration from '../view/config/dropboxConfiguration'
@@ -21,11 +20,7 @@ class PluginSettings extends Component {
       selectedField: '',
       folderName: '',
       dropbox_configuration_app_id: '',
-      formFields: [{
-        label: 'Please select',
-        value: '',
-        isDisabled: false
-      }]
+      formFields: []
     }
   }
 
@@ -69,12 +64,6 @@ class PluginSettings extends Component {
           value: fieldCode.code,
           isDisabled: false
         });
-      })
-
-      arrayFields.unshift({
-        label: 'Please select',
-        value: '',
-        isDisabled: false
       })
 
       if (arrayFields.filter((i) => { return (i.value == selectedField) }).length == 0) {

@@ -1,14 +1,14 @@
 import React, { Component } from 'react'
-import { Text, Label, Dropdown } from '@kintone/kintone-ui-component'
+import { Text, Label, Dropdown, RadioButton } from '@kintone/kintone-ui-component'
 import { Dropbox, Error, files } from 'dropbox'; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { find } from 'lodash'
+import Select from 'react-select'
 
 import { showNotificationError } from '../../utils/notifications'
 import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord } from '../../utils/recordsHelper'
 import './style.sass'
 import { validateDropboxToken } from '../../utils/dropboxAccessTokenValidation'
-import { ContactsOutlined } from '@material-ui/icons';
 
 const  ROOT_FOLDER = ""
 export default class DropboxConfiguration extends Component {
@@ -19,6 +19,20 @@ export default class DropboxConfiguration extends Component {
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
     this.handleGetMembers = this.handleGetMembers.bind(this);
     this.validateAccessToken = this.validateAccessToken.bind(this);
+    this.handleChangeMemberId = this.handleChangeMemberId.bind(this);
+
+    const chooseFolderMethods = [
+      {
+          label: 'Input folder name',
+          value: 'input',
+          isDisabled: false
+      },
+      {
+          label: 'Select an existing folder',
+          value: 'select',
+          isDisabled: false
+      },
+    ];
 
     this.dbx = null;
     this.state = {
@@ -27,13 +41,13 @@ export default class DropboxConfiguration extends Component {
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
       licenseKey: props.licenseKey,
       selectedField: props.selectedField,
-      membersList: [{
-        label: 'Please select',
-        value: '',
-        isDisabled: false
-      }],
+      membersList: [],
       memberId: '',
       isDropboxBusinessAPI: false,
+      hasBeenValidated: false,
+      chooseFolderMethods: chooseFolderMethods,
+      chooseFolderMethod: 'input',
+      existingFoldersList: []
     }
 
 
@@ -258,7 +272,7 @@ export default class DropboxConfiguration extends Component {
   }
 
   async validateAccessToken() {
-    const { accessToken } = this.state;
+    let { accessToken, existingFoldersList } = this.state;
     const result = await validateDropboxToken(accessToken)
     this.dbx = result['dbx']
 
@@ -270,12 +284,46 @@ export default class DropboxConfiguration extends Component {
     } else if (result['status'] == 'businessAccount') {
       this.handleGetMembers()
     } else if (result['status'] == 'individualAccount') {
-
       // logic for individualAccount if needed
+      this.dbx.filesListFolder({ path: ''}).then(response => {
+        const { result: { entries } } = response;
+        existingFoldersList = entries.map(entry => {
+          const folder = {
+            label: entry.name,
+            value: entry.name
+          }
+          return folder;
+        })
+
+        this.setState({
+          hasBeenValidated: true,
+          existingFoldersList: existingFoldersList
+        });
+      })
 
     } else if (result['status'] == 'appPermissionError'   ) {
       showNotificationError('Please check app permission and generate a new access token.')
     }
+  }
+
+  handleChangeMemberId(member: any) {
+    let { accessToken, existingFoldersList } = this.state;
+    this.dbx = new Dropbox({ accessToken: accessToken, selectUser: member.value });
+    this.dbx.sharingListFolders().then(response => {
+      const { result: { entries } } = response;
+      existingFoldersList = entries.map(entry => {
+        const folder = {
+          label: entry.name,
+          value: entry.name
+        }
+        return folder;
+      })
+
+      this.setState({
+        memberId: member.value,
+        existingFoldersList: existingFoldersList
+      });
+    })
   }
 
   async handleGetMembers() {
@@ -294,7 +342,6 @@ export default class DropboxConfiguration extends Component {
       const param = {
         label: `${member.profile.name.display_name}<${member.profile.email}>`,
         value: member.profile.team_member_id,
-        isDisabled: false
       }
       membersList.push(param);
     });
@@ -302,7 +349,12 @@ export default class DropboxConfiguration extends Component {
     this.setState({
       membersList: membersList,
       isDropboxBusinessAPI: true,
+      hasBeenValidated: true,
     })
+  }
+
+  getAllFolders() {
+
   }
 
   UNSAFE_componentWillMount() {
@@ -327,7 +379,6 @@ export default class DropboxConfiguration extends Component {
         return;
       }
 
-      // selectUser: 'dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8'
       this.dbx = new Dropbox({ accessToken: accessToken });
       const dropboxFolderId = configurationRecord.dropbox_folder_id.value
       const metadataResponse = await this.dbx.filesGetMetadata({path: dropboxFolderId}).catch((error: any) => {
@@ -358,7 +409,9 @@ export default class DropboxConfiguration extends Component {
       folderName,
       selectedField,
       dropbox_configuration_app_id,
-      membersList, memberId, isDropboxBusinessAPI
+      membersList, memberId, isDropboxBusinessAPI,
+      hasBeenValidated, chooseFolderMethods, chooseFolderMethod,
+      existingFoldersList
     } = this.state;
 
     return (
@@ -390,10 +443,10 @@ export default class DropboxConfiguration extends Component {
                 <div className="kintoneplugin-row">
                   <Label text='Specified member to use the user endpoints' />
                   <div className="input-config">
-                    <Dropdown
-                      items={membersList}
-                      value={memberId}
-                      onChange={(value) => this.setState({memberId: value})}
+                    <Select
+                      options={membersList}
+                      className="react-select-dropdown"
+                      onChange={(value) => this.handleChangeMemberId(value)}
                     />
                   </div>
                 </div>
@@ -411,21 +464,43 @@ export default class DropboxConfiguration extends Component {
 
             <div className="kintoneplugin-row">
               <Label text='Folder Name' isRequired={false} />
-              <div className="input-config">
-                <Text
-                  value={folderName}
-                  onChange={(value) => this.setState({folderName: value})}
-                  className="kintoneplugin-input-text" />
-              </div>
+              <RadioButton
+                name='chooseFolderMethods'
+                items={chooseFolderMethods}
+                value={chooseFolderMethod}
+                onChange={(value) => {this.setState({chooseFolderMethod: value})}}
+              />
+
+              {
+                chooseFolderMethod === 'input'
+                ?
+                  <div className="input-config">
+                    <Text
+                      value={folderName}
+                      onChange={(value) => this.setState({folderName: value})}
+                      className="kintoneplugin-input-text" />
+                  </div>
+                :
+                <Select
+                  options={existingFoldersList}
+                  className="react-select-dropdown"
+                  onChange={(value) => this.setState({folderName: value.value})}
+                />
+              }
             </div>
             <div className="kintoneplugin-row">
               <Label text='Specified field to set folder name' />
               <div className="input-config">
-                <Dropdown
+                <Select
+                  options={formFields}
+                  className="react-select-dropdown"
+                  onChange={(value) => this.setState({selectedField: value.value})}
+                />
+                {/* <Dropdown
                   items={formFields}
                   value={selectedField}
                   onChange={(value) => this.setState({selectedField: value})}
-                />
+                /> */}
               </div>
             </div>
           </div>
@@ -440,11 +515,15 @@ export default class DropboxConfiguration extends Component {
             </button>
 
             <button
-              className="kintoneplugin-button-dialog-ok btn-action"
-              onClick={this.handleClickSaveButton}
+              className={`kintoneplugin-button-dialog-ok btn-action ${!hasBeenValidated ? 'disabled' : '' }`}
+              onClick={!hasBeenValidated ?  null : this.handleClickSaveButton}
             >
               Save
             </button>
+            {
+              !hasBeenValidated &&
+              <p className="notes">Please validate the access token before save *</p>
+            }
           </div>
         </div>
       </div>

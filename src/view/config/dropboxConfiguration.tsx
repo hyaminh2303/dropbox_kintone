@@ -481,26 +481,22 @@ export default class DropboxConfiguration extends Component {
                       className="kintoneplugin-input-text" />
                   </div>
                 :
-                <Select
-                  options={existingFoldersList}
-                  className="react-select-dropdown"
-                  onChange={(value) => this.setState({folderName: value.value})}
-                />
+                  <div className="input-config">
+                    <Dropdown items={existingFoldersList.length > 0 ? existingFoldersList : undefined}
+                      value={existingFoldersList.length > 0 ? folderName : undefined}
+                      onChange={(value) => this.setState({folderName: value})}
+                    />
+                  </div>
               }
             </div>
             <div className="kintoneplugin-row">
               <Label text='Specified field to set folder name' />
               <div className="input-config">
-                <Select
-                  options={formFields}
-                  className="react-select-dropdown"
-                  onChange={(value) => this.setState({selectedField: value.value})}
-                />
-                {/* <Dropdown
+                <Dropdown
                   items={formFields}
                   value={selectedField}
                   onChange={(value) => this.setState({selectedField: value})}
-                /> */}
+                />
               </div>
             </div>
           </div>

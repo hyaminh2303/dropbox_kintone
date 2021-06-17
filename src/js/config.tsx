@@ -20,7 +20,8 @@ class PluginSettings extends Component {
       selectedField: '',
       folderName: '',
       dropbox_configuration_app_id: '',
-      formFields: []
+      formFields: [],
+      memberId: ''
     }
   }
 

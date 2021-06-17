@@ -49,7 +49,8 @@ export default class DropboxConfiguration extends Component {
       hasBeenValidated: false,
       chooseFolderMethods: chooseFolderMethods,
       chooseFolderMethod: 'input',
-      existingFoldersList: []
+      existingFoldersList: [],
+      sharedFolderId: props.sharedFolderId
     }
 
 
@@ -82,7 +83,6 @@ export default class DropboxConfiguration extends Component {
       folderName,
       selectedField,
       dropbox_configuration_app_id,
-      memberId
     } = this.state;
 
     const createFolderResponse = await this.findOrCreateRootFolder()
@@ -92,7 +92,6 @@ export default class DropboxConfiguration extends Component {
       accessToken: accessToken,
       selectedField: selectedField,
       dropbox_configuration_app_id: dropbox_configuration_app_id,
-      memberId: memberId
     })
 
     let recordIds: any = [];
@@ -153,7 +152,8 @@ export default class DropboxConfiguration extends Component {
       folderName,
       selectedField,
       dropbox_configuration_app_id,
-      memberId
+      memberId,
+      shared_folder_id
     } = this.state;
 
     const createFolderResponse = await this.findOrCreateRootFolder()
@@ -163,7 +163,8 @@ export default class DropboxConfiguration extends Component {
       accessToken: accessToken,
       selectedField: selectedField,
       dropbox_configuration_app_id: dropbox_configuration_app_id,
-      memberId: memberId
+      memberId: memberId,
+      shared_folder_id
     })
 
     let recordIds: any = [];
@@ -218,9 +219,7 @@ export default class DropboxConfiguration extends Component {
     }
   }
 
-
-
-  async handleClickSaveButton() {
+  async handleClickSaveButton() { 
     const {
       accessToken,
       hasBeenValidated,
@@ -231,21 +230,17 @@ export default class DropboxConfiguration extends Component {
     if (accessToken === '' || selectedField === '') {
       showNotificationError('All fields are requied!')
     } else {
-    // neu business account
-      //goi ham business account
-    //else
-    // goi ham individual account
+      // if not business account
       if(hasBeenValidated && !isDropboxBusinessAPI) {
         this.handleCreateOrUpdateIndividualAccount();
-      } else {
-
+      } else if(hasBeenValidated && isDropboxBusinessAPI){
+        this.handleCreateOrUpdateBusinessAccount();
       }
-
     }
   }
 
   async findOrCreateRootFolder() {
-    const { folderName, dropbox_configuration_app_id, accessToken, isDropboxBusinessAPI, hasBeenValidated } = this.state;
+    const { folderName, dropbox_configuration_app_id, accessToken, isDropboxBusinessAPI, hasBeenValidated, sharedFolderId } = this.state;
     const configurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
     console.log("configurationRecord", configurationRecord)
 
@@ -339,19 +334,22 @@ export default class DropboxConfiguration extends Component {
 
       const rootPath = `${ROOT_FOLDER}/${folderName}`
 
-      const metadataResponse = await this.dbx.filesGetMetadata({ path: rootPath }).catch((error) => {
+      const metadataResponse = await this.dbx.sharingGetFolderMetadata({ shared_folder_id: sharedFolderId }).catch((error) => {
         return {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
+      console.log("metadataResponse", metadataResponse)
 
       let createFolderResponse, folderId;
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
-        createFolderResponse = await this.dbx.filesCreateFolder({ path: rootPath }).catch((error: any) => {
+        createFolderResponse = await this.dbx.filesCreateFolderV2({ path: rootPath }).catch((error: any) => {
           return {
             errorCode: 'invalidFolderName'
           }
         })
+
+        console.log("createFolderResponse", createFolderResponse)
 
         if (createFolderResponse['errorCode'] == 'invalidFolderName') {
           showNotificationError('Cannot create folder, please check the folder name. It might be duplicated!')
@@ -417,15 +415,13 @@ export default class DropboxConfiguration extends Component {
     this.dbx = new Dropbox({ accessToken: accessToken, selectUser: member.value });
     const sharingListFolders = await this.dbx.sharingListFolders();
     existingFoldersList = sharingListFolders.result.entries.map(entry => {
+      console.log(entry)
       const folder = {
         label: entry.name,
-        value: entry.name
+        value: entry.shared_folder_id
       }
       return folder;
     })
-
-    const privateListFolders = await this.dbx.filesListFolder({ path: '' });
-    console.log("privateListFolders", privateListFolders)
 
     this.setState({
       memberId: member.id,
@@ -590,7 +586,10 @@ export default class DropboxConfiguration extends Component {
                     <Select
                       options={existingFoldersList}
                       className="react-select-dropdown"
-                      onChange={(value) => this.setState({folderName: value.value})}
+                      onChange={(value) => this.setState({
+                        folderName: value.value,
+                        sharedFolderId: value.value
+                      })}
                     />
                   </div>
               }

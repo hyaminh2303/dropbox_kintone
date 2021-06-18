@@ -38,6 +38,21 @@ export const getConfigurationRecord = async (configurationAppId: string | number
   return !!response['errorCode'] ? response : response.records[0]
 }
 
+export const getAllRecordsByTargetAppRecordId = async (configurationAppId: string | number) => {
+  const restClient = new KintoneRestAPIClient();
+  const response = await restClient.record.getRecords({
+    app: configurationAppId,
+    query: `target_app_id="${kintone.app.getId()}" `
+  }).catch((error: any) => {
+    return {
+      errorCode: 'invalidConfigurationAppId',
+      message: 'Please enter correct configuration app id!'
+    }
+  });
+
+  return !!response['errorCode'] ? response : response.records[0]
+}
+
 export const updateRootRecord = async (configurationAppId: string | number, id: string | number, record: any) => {
   const restClient = new KintoneRestAPIClient();
   await restClient.record.updateRecord({

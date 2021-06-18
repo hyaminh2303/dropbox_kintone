@@ -69,7 +69,6 @@ class PluginSettings extends Component {
       })
 
       if (arrayFields.filter((i) => { return (i.value == selectedField) }).length == 0) {
-        console.log(7612372157351)
         arrayFields.push({
           label: selectedField || '',
           value: selectedField || '',

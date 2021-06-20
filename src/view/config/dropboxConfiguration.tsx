@@ -9,6 +9,7 @@ import { showNotificationError } from '../../utils/notifications'
 import { getRootConfigurationRecord, updateRootRecord, addRootRecord, addChildFolderRecord, getConfigurationRecordsByTargetAppRecordId, deleteAllConfigurationRecordsBy, getConfigurationRecord } from '../../utils/recordsHelper'
 import './style.sass'
 import { validateDropboxToken } from '../../utils/dropboxAccessTokenValidation'
+import Loading from '../../components/loading';
 
 const  ROOT_FOLDER = ""
 export default class DropboxConfiguration extends Component {
@@ -50,7 +51,8 @@ export default class DropboxConfiguration extends Component {
       chooseFolderMethods: chooseFolderMethods,
       chooseFolderMethod: props.chooseFolderMethod || 'input',
       existingFoldersList: [],
-      selectedFolderId: props.selectedFolderId
+      selectedFolderId: props.selectedFolderId,
+      isBlockUI: false
     }
   }
 
@@ -59,97 +61,105 @@ export default class DropboxConfiguration extends Component {
   }
 
   async saveConfigurationsForIndividualAccount() {
-    const {
-      accessToken,
-      folderName,
-      selectedField,
-      dropbox_configuration_app_id,
-      selectedFolderId,
-      chooseFolderMethod
-    } = this.state;
+    try {
+      const {
+        accessToken,
+        folderName,
+        selectedField,
+        dropbox_configuration_app_id,
+        selectedFolderId,
+        chooseFolderMethod
+      } = this.state;
 
-    const createFolderResponse = await this.findOrCreateRootFolder()
-    const restClient = new KintoneRestAPIClient()
+      this.setState({isBlockUI: true})
 
-    if (!!createFolderResponse['errorCode']) {
-      return;
-    }
+      const createFolderResponse = await this.findOrCreateRootFolder()
+      const restClient = new KintoneRestAPIClient()
 
-    const config = {
-      accessToken: accessToken,
-      selectedField: selectedField,
-      folderName: folderName,
-      dropbox_configuration_app_id: dropbox_configuration_app_id,
-      chooseFolderMethod: chooseFolderMethod,
-    }
-    if (!!selectedFolderId) {
-      config['selectedFolderId'] = selectedFolderId
-    }
-    this.props.setPluginConfig(config)
+      if (!!createFolderResponse['errorCode']) {
+        return;
+      }
 
-    let recordIds: any = [];
-    if (createFolderResponse['actionType'] == 'create') {
-      // if create configuration for the record which is already had dropbox folder
-      const existingFolderOnDropbox = await this.dbx.filesListFolder({
-        path: createFolderResponse['path']
+      const config = {
+        accessToken: accessToken,
+        selectedField: selectedField,
+        folderName: folderName,
+        dropbox_configuration_app_id: dropbox_configuration_app_id,
+        chooseFolderMethod: chooseFolderMethod,
+      }
+      if (!!selectedFolderId) {
+        config['selectedFolderId'] = selectedFolderId
+      }
+      this.props.setPluginConfig(config)
+
+      let recordIds: any = [];
+      if (createFolderResponse['actionType'] == 'create') {
+        // if create configuration for the record which is already had dropbox folder
+        const existingFolderOnDropbox = await this.dbx.filesListFolder({
+          path: createFolderResponse['path']
+        })
+
+        existingFolderOnDropbox.result.entries.map(async (entry) => {
+          if (!isNaN(parseInt(entry.name))) {
+            const cRecord = await getConfigurationRecord(dropbox_configuration_app_id, entry.name)
+            if (!!cRecord && !!cRecord['id']) {
+              recordIds.push(parseInt(entry.name))
+              // Add configuration record fold child folder already presented on dropbox
+              await addChildFolderRecord(
+                dropbox_configuration_app_id,
+                folderName,
+                entry.id,
+                entry.name,
+                entry.name
+              )
+            }
+          }
+        })
+      }
+
+
+      let records;
+      if (recordIds.length > 0) {
+        records = await restClient.record.getAllRecords({ app: kintone.app.getId(), condition: `$id not in (${recordIds.join(',')})` });
+      } else {
+        records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
+      }
+
+      // only create folder records, which havent had folder yet.
+      const childFolders = records.map((record) => {
+        return {
+          id: record['$id'].value,
+          name: `${record[selectedField].value || ''}[${record['$id'].value}]`
+        }
       })
 
-      existingFolderOnDropbox.result.entries.map(async (entry) => {
-        if (!isNaN(parseInt(entry.name))) {
-          const cRecord = await getConfigurationRecord(dropbox_configuration_app_id, entry.name)
-          if (!!cRecord && !!cRecord['id']) {
-            recordIds.push(parseInt(entry.name))
-            // Add configuration record fold child folder already presented on dropbox
+      const childFolderPaths = childFolders.map((folder) => {
+        return `${createFolderResponse['path']}/${folder.name}`
+      })
+
+      if (createFolderResponse['actionType'] == 'create') {
+        await this.dbx.filesCreateFolderBatch({paths: childFolderPaths})
+        // Retrieve all folder in this root path for finding and creating configuration record.
+        // if we use the response from filesCreateFolderBatch then cannot get folder name if failed on creation
+        const filesListFolderResponse = await this.dbx.filesListFolder({
+          path: createFolderResponse['path']
+        })
+
+        await Promise.all(filesListFolderResponse.result.entries.map(async (entry) => {
+          const folderRecord = find(childFolders, { name: entry.name })
+          if (!!folderRecord) {
             await addChildFolderRecord(
-              dropbox_configuration_app_id,
-              folderName,
-              entry.id,
-              entry.name,
-              entry.name
+              dropbox_configuration_app_id, folderName,
+              entry.id, folderRecord.id, entry.name
             )
           }
-        }
-      })
-    }
-
-
-    let records;
-    if (recordIds.length > 0) {
-      records = await restClient.record.getAllRecords({ app: kintone.app.getId(), condition: `$id not in (${recordIds.join(',')})` });
-    } else {
-      records = await restClient.record.getAllRecords({ app: kintone.app.getId() });
-    }
-
-    // only create folder records, which havent had folder yet.
-    const childFolders = records.map((record) => {
-      return {
-        id: record['$id'].value,
-        name: `${record[selectedField].value || ''}[${record['$id'].value}]`
+        }))
       }
-    })
-
-    const childFolderPaths = childFolders.map((folder) => {
-      return `${createFolderResponse['path']}/${folder.name}`
-    })
-
-    if (createFolderResponse['actionType'] == 'create') {
-      await this.dbx.filesCreateFolderBatch({paths: childFolderPaths})
-      // Retrieve all folder in this root path for finding and creating configuration record.
-      // if we use the response from filesCreateFolderBatch then cannot get folder name if failed on creation
-      const filesListFolderResponse = await this.dbx.filesListFolder({
-        path: createFolderResponse['path']
-      })
-
-      await Promise.all(filesListFolderResponse.result.entries.map(async (entry) => {
-        const folderRecord = find(childFolders, { name: entry.name })
-        if (!!folderRecord) {
-          await addChildFolderRecord(
-            dropbox_configuration_app_id, folderName,
-            entry.id, folderRecord.id, entry.name
-          )
-        }
-      }))
+      this.setState({isBlockUI: false})
+    } catch (error) {
+      this.setState({isBlockUI: false})
     }
+
   }
 
   async saveConfigurationsForBusinessAccount() {
@@ -412,34 +422,40 @@ export default class DropboxConfiguration extends Component {
 
   async validateAccessToken() {
     let { accessToken } = this.state;
-    const result = await validateDropboxToken(accessToken)
-    this.dbx = result['dbx']
+    this.setState({isBlockUI: true})
+    try {
+      const result = await validateDropboxToken(accessToken)
+      this.dbx = result['dbx']
 
-    if (result['status'] == 'invalidKey') {
-      showNotificationError('Invalid access token, please generate a new one.')
-    } else if (result['status'] == 'unauthorized') {
-      showNotificationError('Invalid access token, please generate a new one.')
-    } else if (result['status'] == 'businessAccount') {
-      showNotificationError("Currently this plugin doesn't support business account, because Dropbox Api doesn't support creating a folder inside team folder.")
-      // this.handleGetMembers()
-    } else if (result['status'] == 'individualAccount') {
-      // logic for individualAccount if needed
-      const filesListFolderResponse = await this.dbx.filesListFolder({ path: '' })
-      const { result: { entries } } = filesListFolderResponse;
-      const listFolders = entries.filter((e) => {return e['.tag']=='folder'}).map((e) => {
-        return {
-          label: e.name,
-          value: e.id
-        }
-      })
+      if (result['status'] == 'invalidKey') {
+        showNotificationError('Invalid access token, please generate a new one.')
+      } else if (result['status'] == 'unauthorized') {
+        showNotificationError('Invalid access token, please generate a new one.')
+      } else if (result['status'] == 'businessAccount') {
+        showNotificationError("Currently this plugin doesn't support business account, because Dropbox Api doesn't support creating a folder inside team folder.")
+        // this.handleGetMembers()
+      } else if (result['status'] == 'individualAccount') {
+        // logic for individualAccount if needed
+        const filesListFolderResponse = await this.dbx.filesListFolder({ path: '' })
+        const { result: { entries } } = filesListFolderResponse;
+        const listFolders = entries.filter((e) => {return e['.tag']=='folder'}).map((e) => {
+          return {
+            label: e.name,
+            value: e.id
+          }
+        })
 
-      this.setState({
-        hasBeenValidated: true,
-        existingFoldersList: listFolders
-      });
+        this.setState({
+          hasBeenValidated: true,
+          existingFoldersList: listFolders
+        });
 
-    } else if (result['status'] == 'appPermissionError'   ) {
-      showNotificationError('Please check app permission and generate a new access token.')
+      } else if (result['status'] == 'appPermissionError'   ) {
+        showNotificationError('Please check app permission and generate a new access token.')
+      }
+      this.setState({isBlockUI: false})
+    } catch (error) {
+      this.setState({isBlockUI: false})
     }
   }
 
@@ -561,11 +577,14 @@ export default class DropboxConfiguration extends Component {
       membersList, memberId, isDropboxBusinessAPI,
       hasBeenValidated, chooseFolderMethods, chooseFolderMethod,
       existingFoldersList,
-      selectedFolderId
+      selectedFolderId,
+      isBlockUI
     } = this.state;
 
     return (
       <div>
+        <Loading isVisible={isBlockUI}/>
+
         <div className="tab-content">
           <div>
             <div className="kintoneplugin-row kintoneplugin-flex">

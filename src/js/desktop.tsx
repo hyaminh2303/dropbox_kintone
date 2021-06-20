@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import {Helmet} from "react-helmet";
 
-import Loading from '../components/loading.tsx';
+import Loading from '../components/loading';
 import RecordDetail from '../view/record_detail';
 
 (async PLUGIN_ID => {

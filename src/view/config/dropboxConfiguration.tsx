@@ -589,7 +589,7 @@ export default class DropboxConfiguration extends Component {
           <div>
             <div className="kintoneplugin-row kintoneplugin-flex">
               <div>
-                <Label text='Access Token' isRequired={false} />
+                <Label text='Access token' isRequired={false} />
                 <div className="input-config">
                   <Text
                     value={accessToken}
@@ -602,7 +602,7 @@ export default class DropboxConfiguration extends Component {
                 className="kintoneplugin-button-dialog-cancel btn-get-members"
                 onClick={this.validateAccessToken}
               >
-                Validate Access Token
+                Validate access token
               </button>
               </div>
             </div>
@@ -623,7 +623,7 @@ export default class DropboxConfiguration extends Component {
             }
 
             <div className="kintoneplugin-row">
-              <Label text='Dropbox Configuration App ID' isRequired={false} />
+              <Label text='Dropbox information app ID' isRequired={false} />
               <div className="input-config">
                 <Text
                   value={dropbox_configuration_app_id}
@@ -633,7 +633,7 @@ export default class DropboxConfiguration extends Component {
             </div>
 
             <div className="kintoneplugin-row">
-              <Label text='Folder Name' isRequired={false} />
+              <Label text='Root folder name' isRequired={false} />
               <RadioButton
                 name='chooseFolderMethods'
                 items={chooseFolderMethods}

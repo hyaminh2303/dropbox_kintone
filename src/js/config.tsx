@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom'
 import { KintoneRestAPIClient } from '@kintone/rest-api-client'
 import { forEach } from 'lodash'
 
+import Fields from '../utils/Fields'
 import DropboxConfiguration from '../view/config/dropboxConfiguration'
 import License from '../view/config/license'
 import '../view/config/style.sass'
@@ -29,7 +30,10 @@ class PluginSettings extends Component {
   setPluginConfig(values: any) {
     const { pluginId } = this.props
     const currentConfig = kintone.plugin.app.getConfig(pluginId)
+    console.log(values)
+    console.log(currentConfig)
     const newConfig = Object.assign(currentConfig, values)
+    console.log(newConfig)
     kintone.plugin.app.setConfig(newConfig, () => {
       return false;
     })
@@ -38,12 +42,12 @@ class PluginSettings extends Component {
   UNSAFE_componentWillMount() {
     const { pluginId } = this.props;
     const config = kintone.plugin.app.getConfig(pluginId);
-
     this.setState({
       accessToken: config.accessToken || '',
       licenseKey: config.licenseKey || '',
       selectedField: config.selectedField || '',
       dropbox_configuration_app_id: config.dropbox_configuration_app_id,
+      folderName: config.folderName,
       formFields: [{
         label: config.selectedField || '',
         value: config.selectedField || '',
@@ -56,25 +60,20 @@ class PluginSettings extends Component {
     (async () => {
       const { selectedField } = this.state;
 
-      const restClient = new KintoneRestAPIClient();
-      const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
+      // const restClient = new KintoneRestAPIClient();
+      // const responseFormFields = await restClient.app.getFormFields({ app: kintone.app.getId() });
 
       let arrayFields: any = [];
-      forEach(responseFormFields.properties, (fieldCode: string, fieldKey: any) => {
-        arrayFields.push({
-          label: fieldCode.label,
-          value: fieldCode.code,
-          isDisabled: false
-        });
+      console.log(Fields)
+      forEach(Fields, (fieldConfig:any, fieldCode: string) => {
+        if (fieldConfig.type == "SINGLE_LINE_TEXT") {
+          arrayFields.push({
+            label: fieldConfig.label,
+            value: fieldCode,
+            isDisabled: false
+          });
+        }
       })
-
-      if (arrayFields.filter((i) => { return (i.value == selectedField) }).length == 0) {
-        arrayFields.push({
-          label: selectedField || '',
-          value: selectedField || '',
-          isDisabled: false
-        })
-      }
 
       this.setState({ formFields: arrayFields });
     })()

@@ -38,7 +38,7 @@ export const getConfigurationRecord = async (configurationAppId: string | number
   return !!response['errorCode'] ? response : response.records[0]
 }
 
-export const getAllRecordsByTargetAppRecordId = async (configurationAppId: string | number) => {
+export const getConfigurationRecordsByTargetAppRecordId = async (configurationAppId: string | number) => {
   const restClient = new KintoneRestAPIClient();
   const response = await restClient.record.getRecords({
     app: configurationAppId,
@@ -50,7 +50,7 @@ export const getAllRecordsByTargetAppRecordId = async (configurationAppId: strin
     }
   });
 
-  return !!response['errorCode'] ? response : response.records[0]
+  return !!response['errorCode'] ? response : response.records
 }
 
 export const updateRootRecord = async (configurationAppId: string | number, id: string | number, record: any) => {
@@ -103,5 +103,18 @@ export const addChildFolderRecord = async (configurationAppId: string | number, 
         value: dropboxFolderName
       }
     }
+  })
+}
+
+export const deleteAllConfigurationRecordsBy = async (configurationAppId: string, recordIds: Array<number>) => {
+  const restClient = new KintoneRestAPIClient();
+  console.log(recordIds)
+  await restClient.record.deleteAllRecords({
+    app: configurationAppId,
+    records: recordIds.map((id) => {
+      return {
+        id: id
+      }
+    })
   })
 }

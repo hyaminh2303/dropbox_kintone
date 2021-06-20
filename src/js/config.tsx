@@ -33,7 +33,7 @@ class PluginSettings extends Component {
     console.log(values)
     console.log(currentConfig)
     const newConfig = Object.assign(currentConfig, values)
-    console.log(newConfig)
+
     kintone.plugin.app.setConfig(newConfig, () => {
       return false;
     })
@@ -42,17 +42,16 @@ class PluginSettings extends Component {
   UNSAFE_componentWillMount() {
     const { pluginId } = this.props;
     const config = kintone.plugin.app.getConfig(pluginId);
+
     this.setState({
       accessToken: config.accessToken || '',
       licenseKey: config.licenseKey || '',
       selectedField: config.selectedField || '',
       dropbox_configuration_app_id: config.dropbox_configuration_app_id,
       folderName: config.folderName,
-      formFields: [{
-        label: config.selectedField || '',
-        value: config.selectedField || '',
-        isDisabled: false
-      }]
+      selectedFolderId: config.selectedFolderId,
+      chooseFolderMethod: config.chooseFolderMethod,
+      formFields: []
     });
   }
 
@@ -69,8 +68,7 @@ class PluginSettings extends Component {
         if (fieldConfig.type == "SINGLE_LINE_TEXT") {
           arrayFields.push({
             label: fieldConfig.label,
-            value: fieldCode,
-            isDisabled: false
+            value: fieldCode
           });
         }
       })

@@ -38,7 +38,7 @@ export default class DropboxConfiguration extends Component {
 
     this.dbx = null;
     this.state = {
-      accessToken: 'TLwHY4oLSYEAAAAAAAAAARBVjBLPx1ZaxVOtKjL1qdQM9f0ixicSXhmsYEFWkEIc', //props.accessToken,
+      accessToken: props.accessToken,
       folderName: props.folderName,
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
       licenseKey: props.licenseKey,
@@ -46,9 +46,9 @@ export default class DropboxConfiguration extends Component {
       membersList: [],
       memberId: props.memberId,
       isDropboxBusinessAPI: false,
-      hasBeenValidated: false,
+      hasBeenValidated: !!props.accessToken,
       chooseFolderMethods: chooseFolderMethods,
-      chooseFolderMethod: 'input',
+      chooseFolderMethod: props.chooseFolderMethod || 'input',
       existingFoldersList: [],
       selectedFolderId: props.selectedFolderId
     }
@@ -64,24 +64,35 @@ export default class DropboxConfiguration extends Component {
       folderName,
       selectedField,
       dropbox_configuration_app_id,
+      selectedFolderId,
+      chooseFolderMethod
     } = this.state;
 
     const createFolderResponse = await this.findOrCreateRootFolder()
     const restClient = new KintoneRestAPIClient()
 
-    if (!!createFolderResponse['errorCode']) { return }
+    if (!!createFolderResponse['errorCode']) {
+      return;
+    }
 
-    this.props.setPluginConfig({
+    const config = {
       accessToken: accessToken,
       selectedField: selectedField,
       folderName: folderName,
       dropbox_configuration_app_id: dropbox_configuration_app_id,
-    })
+      chooseFolderMethod: chooseFolderMethod,
+    }
+    if (!!selectedFolderId) {
+      config['selectedFolderId'] = selectedFolderId
+    }
+    this.props.setPluginConfig(config)
 
     let recordIds: any = [];
     if (createFolderResponse['actionType'] == 'create') {
       // if create configuration for the record which is already had dropbox folder
-      const existingFolderOnDropbox = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
+      const existingFolderOnDropbox = await this.dbx.filesListFolder({
+        path: createFolderResponse['path']
+      })
 
       existingFolderOnDropbox.result.entries.map(async (entry) => {
         if (!isNaN(parseInt(entry.name))) {
@@ -111,7 +122,6 @@ export default class DropboxConfiguration extends Component {
 
     // only create folder records, which havent had folder yet.
     const childFolders = records.map((record) => {
-      console.log(record)
       return {
         id: record['$id'].value,
         name: `${record[selectedField].value || ''}[${record['$id'].value}]`
@@ -123,19 +133,22 @@ export default class DropboxConfiguration extends Component {
     })
 
     if (createFolderResponse['actionType'] == 'create') {
-      const filesListFolderResponse = await this.dbx.filesCreateFolderBatch({
-        paths: childFolderPaths
+      await this.dbx.filesCreateFolderBatch({paths: childFolderPaths})
+      // Retrieve all folder in this root path for finding and creating configuration record.
+      // if we use the response from filesCreateFolderBatch then cannot get folder name if failed on creation
+      const filesListFolderResponse = await this.dbx.filesListFolder({
+        path: createFolderResponse['path']
       })
-      console.log(filesListFolderResponse)
-      await filesListFolderResponse.result.entries.map(async (entry) => {
-        if (entry['.tag'] == "failure") { return }
 
-        const folderRecord = find(childFolders, { name: entry.metadata.name })
-        await addChildFolderRecord(
-          dropbox_configuration_app_id, folderName,
-          entry.metadata.id, folderRecord.id, entry.metadata.name
-        )
-      })
+      await Promise.all(filesListFolderResponse.result.entries.map(async (entry) => {
+        const folderRecord = find(childFolders, { name: entry.name })
+        if (!!folderRecord) {
+          await addChildFolderRecord(
+            dropbox_configuration_app_id, folderName,
+            entry.id, folderRecord.id, entry.name
+          )
+        }
+      }))
     }
   }
 
@@ -145,8 +158,7 @@ export default class DropboxConfiguration extends Component {
       folderName,
       selectedField,
       dropbox_configuration_app_id,
-      memberId,
-      shared_folder_id
+      memberId
     } = this.state;
 
     const createFolderResponse = await this.findOrCreateRootFolder()
@@ -156,14 +168,12 @@ export default class DropboxConfiguration extends Component {
       accessToken: accessToken,
       selectedField: selectedField,
       dropbox_configuration_app_id: dropbox_configuration_app_id,
-      memberId: memberId,
-      shared_folder_id
+      memberId: memberId
     })
 
     let recordIds: any = [];
     if (createFolderResponse['actionType'] == 'create') {
-      // if create configuration record for the record which is already had dropbox folder
-      const existingFolderOnDropbox = await this.dbx.filesListFolder({ path: createFolderResponse['path'] })
+      const existingFolderOnDropbox = await this.dbx.filesListFolder({ path: '/testing' })
 
       existingFolderOnDropbox.result.entries.map(async (entry) => {
         recordIds.push(`"${entry.name}"`)
@@ -196,9 +206,8 @@ export default class DropboxConfiguration extends Component {
 
     if (createFolderResponse['actionType'] == 'create') {
       const filesListFolderResponse = await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths })
-      console.log("filesListFolderResponse", filesListFolderResponse)
-      await filesListFolderResponse.result.entries.map(async (entry) => {
-        console.log(entry)
+
+      await Promise.all(filesListFolderResponse.result.entries.map(async (entry) => {
         const folderRecord = find(childFolders, { name: entry.name })
         await addChildFolderRecord(
           dropbox_configuration_app_id,
@@ -207,7 +216,7 @@ export default class DropboxConfiguration extends Component {
           folderRecord.id,
           entry.name
         )
-      })
+      }))
     }
   }
 
@@ -238,8 +247,6 @@ export default class DropboxConfiguration extends Component {
           } = this.state;
     const configurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
 
-    console.log(this.props)
-    console.log(folderName)
     if(chooseFolderMethod === "select" && folderName !== this.props.folderName) {
       const records= await getConfigurationRecordsByTargetAppRecordId(dropbox_configuration_app_id);
       if (!!records && records['errorCode'] == 'invalidConfigurationAppId') {
@@ -303,7 +310,7 @@ export default class DropboxConfiguration extends Component {
       console.log('Action Update')
 
       const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
-      const metadataResponse = await this.dbx.filesGetMetadata({ path: dropboxFolderId }).catch((error) => {
+      let metadataResponse = await this.dbx.filesGetMetadata({ path: dropboxFolderId }).catch((error) => {
         return {
           errorCode: 'notFoundFolderOnDropbox'
         }
@@ -311,12 +318,20 @@ export default class DropboxConfiguration extends Component {
 
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // need to re-create folder here, because it was deleted on drobox
+        const folderResponse = await this.dbx.filesCreateFolderV2({path: `${ROOT_FOLDER}/${folderName}`})
 
-      }
+        await updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+          root_folder_name: { value: folderName },
+          dropbox_folder_id: { value: folderResponse.result.metadata.id }
+        })
 
-      const currentRootPath = `${ROOT_FOLDER}/${metadataResponse.result.name}`;
+        return {
+          actionType: 'edit',
+          path: `${ROOT_FOLDER}/${folderName}`
+        }
 
-      if (folderName != metadataResponse.result.name) {
+      } else if (folderName != metadataResponse.result.name) {
+        const currentRootPath = `${ROOT_FOLDER}/${metadataResponse.result.name}`;
         const newRootPath = `${ROOT_FOLDER}/${folderName}`;
 
         const filesMoveResponse = await this.dbx.filesMove({ from_path: currentRootPath, to_path: newRootPath }).catch((error: any) => {
@@ -345,7 +360,7 @@ export default class DropboxConfiguration extends Component {
       } else {
         return {
           actionType: 'edit',
-          path: currentRootPath
+          path: `${ROOT_FOLDER}/${metadataResponse.result.name}`
         }
       }
 
@@ -360,7 +375,7 @@ export default class DropboxConfiguration extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
-      console.log("metadataResponse", metadataResponse)
+
 
       let createFolderResponse, folderId;
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
@@ -380,12 +395,6 @@ export default class DropboxConfiguration extends Component {
         }
 
         folderId = createFolderResponse.result.metadata.id
-        await this.dbx.sharingShareFolder({
-          path: createFolderResponse.result.metadata.path_display,
-          shared_link_policy: 'team',
-          force_async: true
-        })
-
       } else {
         folderId = metadataResponse.result.id
       }
@@ -411,7 +420,8 @@ export default class DropboxConfiguration extends Component {
     } else if (result['status'] == 'unauthorized') {
       showNotificationError('Invalid access token, please generate a new one.')
     } else if (result['status'] == 'businessAccount') {
-      this.handleGetMembers()
+      showNotificationError("Currently this plugin doesn't support business account, because Dropbox Api doesn't support creating a folder inside team folder.")
+      // this.handleGetMembers()
     } else if (result['status'] == 'individualAccount') {
       // logic for individualAccount if needed
       const filesListFolderResponse = await this.dbx.filesListFolder({ path: '' })
@@ -436,28 +446,22 @@ export default class DropboxConfiguration extends Component {
   async handleChangeselectMember(member: any) {
     let { accessToken, existingFoldersList } = this.state;
     this.dbx = new Dropbox({ accessToken: accessToken, selectUser: member.value });
-    const sharingListFolders = await this.dbx.sharingListFolders();
-    existingFoldersList = sharingListFolders.result.entries.map(entry => {
-      const folder = {
-        label: entry.name,
-        value: entry.shared_folder_id
-      }
-      return folder;
-    })
+    const sharingListFolders = await this.dbx.sharingListFolders({
+      actions: [
+        'edit_contents'
+      ]
+    });
 
-    const privateListFolders = await this.dbx.filesListFolder({path:''});
-    console.log("privateListFolder", privateListFolders)
-    privateListFolders.result.entries.forEach(folder => {
-      if(folder['.tag'] === 'folder') {
-        existingFoldersList.push({
-          label: folder.name,
-          value: folder.id
-        })
-      }
+    console.log(sharingListFolders) // This is for debugging later
+
+    existingFoldersList = sharingListFolders.result.entries.filter((entry: any) => {
+      return entry.is_inside_team_folder;
+    }).map((entry: any) => {
+      return { label: entry.name, value: entry.shared_folder_id }
     })
 
     this.setState({
-      memberId: member.id,
+      memberId: `${member.value}`,
       existingFoldersList: existingFoldersList
     });
   }
@@ -473,6 +477,8 @@ export default class DropboxConfiguration extends Component {
     const teamMemberListResponse = await this.dbx.teamMembersListV2({
       limit: 1000, include_removed: false
     })
+
+    console.log(teamMemberListResponse)
 
     const { result: { members } } = teamMemberListResponse;
     members.forEach(member => {
@@ -498,6 +504,7 @@ export default class DropboxConfiguration extends Component {
       if (!accessToken && !dropbox_configuration_app_id) {
         return;
       }
+
 
       const configurationRecord = await getRootConfigurationRecord(dropbox_configuration_app_id)
 
@@ -527,7 +534,16 @@ export default class DropboxConfiguration extends Component {
         return ;
       }
 
-      this.setState({ folderName: metadataResponse.result.name })
+      await this.validateAccessToken(accessToken)
+
+      let newState = {
+        folderName: metadataResponse.result.name
+      }
+      let selectFolder = find(this.state.existingFoldersList, {value: dropboxFolderId})
+      if (!!selectFolder) {
+        newState['selectedFolderId'] =  selectFolder.value
+      }
+      this.setState(newState)
       updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
         root_folder_name: { value: metadataResponse.result.name }
       })
@@ -544,7 +560,8 @@ export default class DropboxConfiguration extends Component {
       dropbox_configuration_app_id,
       membersList, memberId, isDropboxBusinessAPI,
       hasBeenValidated, chooseFolderMethods, chooseFolderMethod,
-      existingFoldersList
+      existingFoldersList,
+      selectedFolderId
     } = this.state;
 
     return (
@@ -618,22 +635,29 @@ export default class DropboxConfiguration extends Component {
                   <div className="input-config">
                     <Select
                       options={existingFoldersList}
+                      value={find(existingFoldersList, {value: selectedFolderId})}
                       className="react-select-dropdown"
                       onChange={(value) => this.setState({
                         folderName: value.label,
                         selectedFolderId: value.value
                       })}
                     />
+                    <div>
+                      <i><small>
+                        Do not select the folder that has been using in other plugin.
+                      </small></i>
+                    </div>
                   </div>
               }
             </div>
             <div className="kintoneplugin-row">
-              <Label text='Specified field to set folder name' />
+              <Label text='Select field for folder name' />
               <div className="input-config">
                 <Select
+                  value={find(formFields, {value: selectedField})}
                   options={formFields}
                   className="react-select-dropdown"
-                  onChange={(value) => this.setState({selectedField: value.value})}
+                  onChange={(option) => this.setState({selectedField: option.value})}
                 />
               </div>
             </div>

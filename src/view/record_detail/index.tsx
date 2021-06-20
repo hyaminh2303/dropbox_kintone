@@ -103,7 +103,7 @@ export default class RecordDetail extends Component {
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // this means folder already deleted on dropbox, need to create it again
         const rootPath = `/${configurationRecord['root_folder_name'].value}/${configurationRecord['dropbox_folder_name'].value}`
-        const createFolderResponse = await this.requestDropbox('filesCreateFolder', {
+        const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
           path: rootPath, autorename: true
         })
 
@@ -135,7 +135,7 @@ export default class RecordDetail extends Component {
 
       const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
       const rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${folderName}`
-      const createFolderResponse = await this.requestDropbox('filesCreateFolder', {
+      const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
         path: rootPath, autorename: true
       })
 
@@ -236,7 +236,7 @@ export default class RecordDetail extends Component {
 
   createChildFolder(name: string) {
     this.setState({isDialogFolderFormVisible: false})
-    this.requestDropbox('filesCreateFolder', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
+    this.requestDropbox('filesCreateFolderV2', { path: `${this.state.currentPathLower}/${name}`}, (dbxResponse) => {
       showNotificationSuccess(`${name} has been created successfully`)
       this.getDropboxEntries(this.state.currentPathLower)
     }, (error) => {

@@ -21,14 +21,13 @@
       "css/config.css"
     ],
     "required_params": [
-      "message"
     ]
   },
   "name": {
-    "en": "Dropbox"
+    "en": "Dropbox for kintone"
   },
   "description": {
-    "en": "Dropbox"
+    "en": "Dropbox for kintone"
   },
   "mobile": {
     "js": [

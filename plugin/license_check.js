@@ -34,9 +34,10 @@
 
 
     async function mainStart(event){
+        console.log('1')
         var config = kintone.plugin.app.getConfig(PLUGIN_ID);
         console.log(config,'config')
-		var startCheck =  activationCheck(event);
+        var startCheck =  activationCheck(event);
         if (startCheck){
             console.log('startCheck');
         }

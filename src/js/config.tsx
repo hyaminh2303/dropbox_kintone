@@ -5,7 +5,6 @@ import { forEach } from 'lodash'
 
 import Fields from '../utils/Fields'
 import DropboxConfiguration from '../view/config/dropboxConfiguration'
-import License from '../view/config/license'
 import '../view/config/style.sass'
 
 class PluginSettings extends Component {
@@ -17,7 +16,6 @@ class PluginSettings extends Component {
     this.state = {
       activatedTab: 'config_app',
       accessToken: '',
-      licenseKey: '',
       selectedField: '',
       folderName: '',
       dropbox_configuration_app_id: '',
@@ -45,7 +43,6 @@ class PluginSettings extends Component {
 
     this.setState({
       accessToken: config.accessToken || '',
-      licenseKey: config.licenseKey || '',
       selectedField: config.selectedField || '',
       dropbox_configuration_app_id: config.dropbox_configuration_app_id,
       folderName: config.folderName,
@@ -88,10 +85,7 @@ class PluginSettings extends Component {
         <div className="tab-btn-wrapper">
           <button className="tab-btn" onClick={() => this.setState({ activatedTab: 'config_app' })}>
             Config App
-            </button>
-          <button className="tab-btn" onClick={() => this.setState({ activatedTab: 'licenseKeyTab' })}>
-            License
-            </button>
+          </button>
         </div>
 
         {
@@ -103,9 +97,7 @@ class PluginSettings extends Component {
               pluginId={pluginId}
             />
           :
-            <License
-              {...this.state}
-            />
+            null
         }
 
       </React.Fragment>

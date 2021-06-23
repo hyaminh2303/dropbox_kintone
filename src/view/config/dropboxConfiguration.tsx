@@ -42,7 +42,6 @@ export default class DropboxConfiguration extends Component {
       accessToken: props.accessToken,
       folderName: props.folderName,
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
-      licenseKey: props.licenseKey,
       selectedField: props.selectedField,
       membersList: [],
       memberId: props.memberId,

@@ -3,7 +3,7 @@
     "use strict";
 
     async function activationCheck(event) {
-console.log(encodeURI(window.location.hostname));
+        console.log(encodeURI(window.location.hostname));
         kintone.proxy(
             'https://capdomain.xsrv.jp/public/activationDomain/?license_cd=5&domain=' + window.location.hostname,
             'GET',
@@ -12,9 +12,9 @@ console.log(encodeURI(window.location.hostname));
             async function(body,status,headers){
                 if (status==200)
                 {
-console.log('2');
+                    console.log('2');
                     var json=JSON.parse(body);
-console.log(json);
+                    console.log(json);
                     if (json[0]['records'][0]['ドメイン名']['value']=='') {
                         errorMsgDialog('ライセンスが登録されていません。');
                         return false;

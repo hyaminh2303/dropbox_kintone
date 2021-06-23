@@ -14,7 +14,6 @@ class PluginSettings extends Component {
     this.setPluginConfig = this.setPluginConfig.bind(this);
 
     this.state = {
-      activatedTab: 'config_app',
       accessToken: '',
       selectedField: '',
       folderName: '',
@@ -75,7 +74,6 @@ class PluginSettings extends Component {
   }
 
   render() {
-    const { activatedTab } = this.state;
     const { pluginId } = this.props;
 
     return (
@@ -83,23 +81,15 @@ class PluginSettings extends Component {
         <h2>Settings for pluginDropbox</h2>
 
         <div className="tab-btn-wrapper">
-          <button className="tab-btn" onClick={() => this.setState({ activatedTab: 'config_app' })}>
+          <button className="tab-btn">
             Config App
           </button>
         </div>
-
-        {
-          activatedTab === 'config_app'
-          ?
-            <DropboxConfiguration
-              {...this.state}
-              setPluginConfig={this.setPluginConfig}
-              pluginId={pluginId}
-            />
-          :
-            null
-        }
-
+        <DropboxConfiguration
+          {...this.state}
+          setPluginConfig={this.setPluginConfig}
+          pluginId={pluginId}
+        />
       </React.Fragment>
     )
   }

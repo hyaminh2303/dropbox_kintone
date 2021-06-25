@@ -4,6 +4,8 @@
   "type": "APP",
   "desktop": {
     "js": [
+      "https://unpkg.com/sweetalert/dist/sweetalert.min.js",
+      "js/license_check.js",
       "js/desktop.js"
     ],
     "css": [
@@ -31,6 +33,8 @@
   },
   "mobile": {
     "js": [
+      "https://unpkg.com/sweetalert/dist/sweetalert.min.js",
+      "js/license_check.js",
       "js/mobile.js"
     ],
     "css": [

@@ -108,7 +108,7 @@ export default class RecordDetail extends Component {
         })
 
         return {
-          path: createFolderResponse.result.path_lower
+          path: createFolderResponse.result.metadata.path_lower
         }
 
       } else if (metadataResponse.result.name != configurationRecord['dropbox_folder_name'].value) {
@@ -142,13 +142,13 @@ export default class RecordDetail extends Component {
       await addChildFolderRecord(
         dropbox_configuration_app_id,
         rootConfigurationRecord['root_folder_name'].value,
-        createFolderResponse.result.id,
+        createFolderResponse.result.metadata.id,
         record['$id'].value,
-        createFolderResponse.result.name
+        createFolderResponse.result.metadata.name
       )
 
       return {
-        path: createFolderResponse.result.path_lower
+        path: createFolderResponse.result.metadata.path_lower
       }
     }
   }
@@ -212,7 +212,7 @@ export default class RecordDetail extends Component {
 
   onDeleteFile(dropboxEntry) {
     showConfirm(() => {
-      this.requestDropbox('filesDelete', { path: dropboxEntry.path_lower }, (dbxResponse) => {
+      this.requestDropbox('filesDeleteV2', { path: dropboxEntry.path_lower }, (dbxResponse) => {
         showNotificationSuccess(`${dropboxEntry['.tag']} has been deleted successfully`)
         this.getDropboxEntries(this.state.currentPathLower)
       })
@@ -247,7 +247,7 @@ export default class RecordDetail extends Component {
   editChildFolderName(dropboxEntry: any, newName: string) {
     this.setState({isDialogRenameFolderFormVisible: false})
     if(dropboxEntry.name !== newName) {
-      this.requestDropbox('filesMove', {
+      this.requestDropbox('filesMoveV2', {
         from_path: `${this.state.currentPathLower}/${dropboxEntry.name}`,
         to_path: `${this.state.currentPathLower}/${newName}`
       }, (response) => {

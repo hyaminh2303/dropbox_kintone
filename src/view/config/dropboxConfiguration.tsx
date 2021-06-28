@@ -343,7 +343,7 @@ export default class DropboxConfiguration extends Component {
         const currentRootPath = `${ROOT_FOLDER}/${metadataResponse.result.name}`;
         const newRootPath = `${ROOT_FOLDER}/${folderName}`;
 
-        const filesMoveResponse = await this.dbx.filesMove({ from_path: currentRootPath, to_path: newRootPath }).catch((error: any) => {
+        const filesMoveResponse = await this.dbx.filesMoveV2({ from_path: currentRootPath, to_path: newRootPath }).catch((error: any) => {
           return {
             errorCode: 'invalidNewName'
           }
@@ -357,7 +357,7 @@ export default class DropboxConfiguration extends Component {
         }
 
         updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
-          root_folder_name: { value: filesMoveResponse.result.name }
+          root_folder_name: { value: filesMoveResponse.result.metadata.name }
         })
 
         console.log('Updated folder')

@@ -40,6 +40,7 @@ export default class DropboxConfiguration extends Component {
     this.dbx = null;
     this.state = {
       accessToken: props.accessToken,
+      dropboxAppKey: props.dropboxAppKey,
       folderName: props.folderName,
       dropbox_configuration_app_id: props.dropbox_configuration_app_id,
       selectedField: props.selectedField,
@@ -67,7 +68,8 @@ export default class DropboxConfiguration extends Component {
         selectedField,
         dropbox_configuration_app_id,
         selectedFolderId,
-        chooseFolderMethod
+        chooseFolderMethod,
+        dropboxAppKey
       } = this.state;
 
       this.setState({isBlockUI: true})
@@ -81,6 +83,7 @@ export default class DropboxConfiguration extends Component {
 
       const config = {
         accessToken: accessToken,
+        dropboxAppKey: dropboxAppKey,
         selectedField: selectedField,
         folderName: folderName,
         dropbox_configuration_app_id: dropbox_configuration_app_id,
@@ -577,7 +580,8 @@ export default class DropboxConfiguration extends Component {
       hasBeenValidated, chooseFolderMethods, chooseFolderMethod,
       existingFoldersList,
       selectedFolderId,
-      isBlockUI
+      isBlockUI,
+      dropboxAppKey
     } = this.state;
 
     return (
@@ -586,6 +590,18 @@ export default class DropboxConfiguration extends Component {
 
         <div className="tab-content">
           <div>
+          <div className="kintoneplugin-row kintoneplugin-flex">
+              <div>
+                <Label text='Dropbox App Key' isRequired={false} />
+                <div className="input-config">
+                  <Text
+                    value={dropboxAppKey}
+                    onChange={(value) => this.setState({dropboxAppKey: value})}
+                    className="kintoneplugin-input-text" />
+                </div>
+              </div>
+            </div>
+
             <div className="kintoneplugin-row kintoneplugin-flex">
               <div>
                 <Label text='Access token' isRequired={false} />

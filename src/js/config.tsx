@@ -20,14 +20,15 @@ class PluginSettings extends Component {
       dropbox_configuration_app_id: '',
       formFields: [],
       memberId: '',
-      sharedFolderId: ''
+      sharedFolderId: '',
+      dropboxAppKey: ''
     }
   }
 
   setPluginConfig(values: any) {
     const { pluginId } = this.props
     const currentConfig = kintone.plugin.app.getConfig(pluginId)
-    console.log(values)
+
     console.log(currentConfig)
     const newConfig = Object.assign(currentConfig, values)
 
@@ -47,6 +48,7 @@ class PluginSettings extends Component {
       folderName: config.folderName,
       selectedFolderId: config.selectedFolderId,
       chooseFolderMethod: config.chooseFolderMethod,
+      dropboxAppKey: config.dropboxAppKey,
       formFields: []
     });
   }

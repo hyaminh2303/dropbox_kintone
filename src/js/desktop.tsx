@@ -53,7 +53,7 @@ import RecordDetail from '../view/record_detail';
             <Loading isVisible={isBlockUI}/>
             <React.Fragment>
               <Helmet>
-                  <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="ofadvw0r9advmky"></script>
+                  <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key={config.dropboxAppKey}></script>
               </Helmet>
               <RecordDetail
                 pluginId={pluginId}

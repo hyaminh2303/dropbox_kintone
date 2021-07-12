@@ -28,7 +28,7 @@ const ROOT_FOLDER = "";
 export default class DropboxConfiguration extends Component {
   constructor(props) {
     super(props);
-    this.findOrCreateRootFolder = this.findOrCreateRootFolder.bind(this);
+    this.findOrCreateRootFolderForIndividualAccount = this.findOrCreateRootFolderForIndividualAccount.bind(this);
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
     this.handleGetMembers = this.handleGetMembers.bind(this);
@@ -89,7 +89,7 @@ export default class DropboxConfiguration extends Component {
 
       this.setState({ isBlockUI: true });
 
-      const createFolderResponse = await this.findOrCreateRootFolder();
+      const createFolderResponse = await this.findOrCreateRootFolderForIndividualAccount();
       const restClient = new KintoneRestAPIClient();
 
       if (!!createFolderResponse["errorCode"]) {
@@ -197,19 +197,22 @@ export default class DropboxConfiguration extends Component {
       selectedField,
       dropbox_configuration_app_id,
       memberId,
+      selectedFolderId
     } = this.state;
 
-    // const createFolderResponse = await this.findOrCreateRootFolder();
-    if (!!createFolderResponse["errorCode"]) {
-      return;
-    }
+    // const createFolderResponse = await this.findOrCreateRootFolderForIndividualAccount();
+    // if (!!createFolderResponse["errorCode"]) {
+    //   return;
+    // }
 
-    // this.props.setPluginConfig({
-    //   accessToken: accessToken,
-    //   selectedField: selectedField,
-    //   dropbox_configuration_app_id: dropbox_configuration_app_id,
-    //   memberId: memberId,
-    // });
+
+    this.props.setPluginConfig({
+      accessToken: accessToken,
+      selectedField: selectedField,
+      dropbox_configuration_app_id: dropbox_configuration_app_id,
+      memberId: memberId,
+      selectedFolderId: selectedFolderId
+    });
 
     // this.dbx = new Dropbox({
     //   accessToken: "50EQzhL1y0kAAAAAAAAAAWA6KW6L0bugYoG10wUyiWNt",
@@ -220,12 +223,76 @@ export default class DropboxConfiguration extends Component {
     // })
     // console.log("createFolderResponse", createFolderResponse)
     // let recordIds: any = [];
-    // const restClient = new KintoneRestAPIClient();
-    // const records = await restClient.record.getAllRecords({
-    //   app: kintone.app.getId(),
-    //   condition: `$id not in (${recordIds.join(",")})`,
+    const restClient = new KintoneRestAPIClient();
+    const records = await restClient.record.getAllRecords({
+      app: kintone.app.getId(),
+    });
+
+    console.log(selectedFolderId)
+    console.log(memberId)
+    console.log(accessToken)
+
+    // this.dbx = new Dropbox({
+    //   // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
+    //   accessToken: accessToken,
+    //   selectUser: memberId,
+    //   pathRoot: `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}}"`,
     // });
 
+    // Success
+    // this.dbx = new Dropbox({
+    //   // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
+    //   accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
+    //   selectUser: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
+    //   pathRoot: `{".tag": "namespace_id", "namespace_id": "9692023760"}`,
+    //   // selectAdmin: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
+    //   // selectAdmin: "dbmid:AADfBeFJwtEHc0NmVBKW8ZQ9vfg-xH5Z530",
+    // });
+
+    console.log("9692023760")
+    console.log(`${selectedFolderId}`)
+    // selectedFolderId
+    this.dbx = new Dropbox({
+      // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
+      accessToken: `${accessToken}`,
+      selectUser: `${memberId}`,
+      pathRoot: `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}"}`,
+      // selectAdmin: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
+      // selectAdmin: "dbmid:AADfBeFJwtEHc0NmVBKW8ZQ9vfg-xH5Z530",
+    });
+
+    const childFolders = records.map((record) => {
+      return {
+        id: record["$id"].value,
+        name: `${record[selectedField].value || ""}[${record["$id"].value}]`,
+      };
+    });
+
+    const childFolderPaths = childFolders.map((folder) => {
+      return `/${folder.name}`;
+    });
+
+    console.log(childFolderPaths)
+
+    await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths, autorename: true });
+    // await this.dbx.filesCreateFolderV2({ path: '/minh_test7', autorename: true });
+    // const a = await this.dbx.sharingShareFolder({
+    //   path: '/minh_test6',
+    //   acl_update_policy: 'editors',
+    //   force_async: false,
+    //   member_policy: 'team',
+    //   shared_link_policy: 'team',
+    //   access_inheritance: 'inherit'
+    // })
+
+    // const a = await  this.dbx.filesCreateFolderV2({
+    //   path: '/minh_test6'
+    // })
+
+    // const a = await this.dbx.teamTeamFolderCreate({
+    //   name: 'testing 1/minh_testing1'
+    // })
+    // console.log(a)
   }
 
   async handleClickSaveButton() {
@@ -236,45 +303,19 @@ export default class DropboxConfiguration extends Component {
       isDropboxBusinessAPI,
     } = this.state;
 
-    // if (accessToken === "" || selectedField === "") {
-    //   showNotificationError("All fields are requied!");
-    // } else {
-    //   // if not business account
-    //   if (hasBeenValidated && !isDropboxBusinessAPI) {
-    //     this.saveConfigurationsForIndividualAccount();
-    //   } else if (hasBeenValidated && isDropboxBusinessAPI) {
-    //     // this.saveConfigurationsForBusinessAccount();
-    //   }
-    // }
-
-    this.dbx = new Dropbox({
-      // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
-      accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
-      selectUser: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
-      pathRoot: `{".tag": "namespace_id", "namespace_id": "9692023760"}`,
-      // selectAdmin: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
-      // selectAdmin: "dbmid:AADfBeFJwtEHc0NmVBKW8ZQ9vfg-xH5Z530",
-    });
-    // const a = await this.dbx.sharingShareFolder({
-    //   path: '/minh_test6',
-    //   acl_update_policy: 'editors',
-    //   force_async: false,
-    //   member_policy: 'team',
-    //   shared_link_policy: 'team',
-    //   access_inheritance: 'inherit'
-    // })
-
-    const a = await  this.dbx.filesCreateFolderV2({
-      path: '/minh_test6'
-    })
-
-    // const a = await this.dbx.teamTeamFolderCreate({
-    //   name: 'testing 1/minh_testing1'
-    // })
-    console.log(a)
+    if (accessToken === "" || selectedField === "") {
+      showNotificationError("All fields are requied!");
+    } else {
+      // if not business account
+      if (hasBeenValidated && !isDropboxBusinessAPI) {
+        this.saveConfigurationsForIndividualAccount();
+      } else if (hasBeenValidated && isDropboxBusinessAPI) {
+        this.saveConfigurationsForBusinessAccount();
+      }
+    }
   }
 
-  async findOrCreateRootFolder() {
+  async findOrCreateRootFolderForIndividualAccount() {
     const {
       folderName,
       dropbox_configuration_app_id,
@@ -726,7 +767,7 @@ export default class DropboxConfiguration extends Component {
                 <Label text="Specified member to use the user endpoints" />
                 <div className="input-config">
                   <Select
-                    value={memberId}
+                    value={find(membersList, { value: memberId })}
                     options={membersList}
                     className="react-select-dropdown"
                     onChange={(value) => this.handleChangeMember(value)}
@@ -775,12 +816,13 @@ export default class DropboxConfiguration extends Component {
                       value: selectedFolderId,
                     })}
                     className="react-select-dropdown"
-                    onChange={(value) =>
+                    onChange={(value) =>{
+                      console.log(value)
                       this.setState({
                         folderName: value.label,
                         selectedFolderId: value.value,
                       })
-                    }
+                    }}
                   />
                   <div>
                     <i>

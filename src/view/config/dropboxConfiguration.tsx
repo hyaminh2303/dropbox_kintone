@@ -4,6 +4,7 @@ import {
   Label,
   Dropdown,
   RadioButton,
+  Dialog
 } from "@kintone/kintone-ui-component";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
 import { KintoneRestAPIClient } from "@kintone/rest-api-client";
@@ -193,72 +194,73 @@ export default class DropboxConfiguration extends Component {
   async saveConfigurationsForBusinessAccount() {
     const {
       accessToken,
-      folderName,
       selectedField,
       dropbox_configuration_app_id,
       memberId,
-      selectedFolderId
+      selectedFolderId,
+      folderName
     } = this.state;
-
-    // const createFolderResponse = await this.findOrCreateRootFolderForIndividualAccount();
-    // if (!!createFolderResponse["errorCode"]) {
-    //   return;
-    // }
-
 
     this.props.setPluginConfig({
       accessToken: accessToken,
       selectedField: selectedField,
       dropbox_configuration_app_id: dropbox_configuration_app_id,
       memberId: memberId,
+      folderName: folderName,
       selectedFolderId: selectedFolderId
     });
 
-    // this.dbx = new Dropbox({
-    //   accessToken: "50EQzhL1y0kAAAAAAAAAAWA6KW6L0bugYoG10wUyiWNt",
-    //   selectUser: "dbid:AABdu4VJaEsz3rIdTVqlM4bRhDWRk5e5JK8",
-    // });
-    // this.dbx.sharingShareFolder({
-    //   path: 'minh_test1'
-    // })
-    // console.log("createFolderResponse", createFolderResponse)
-    // let recordIds: any = [];
     const restClient = new KintoneRestAPIClient();
-    const records = await restClient.record.getAllRecords({
+    let records = await getConfigurationRecordsByTargetAppRecordId(
+      dropbox_configuration_app_id
+    );
+
+    if (!!records && records["errorCode"] == "invalidConfigurationAppId") {
+      showNotificationError(
+        "Please endter configuration app id in plugin setting!"
+      );
+      return {
+        errorCode: "invalidConfigurationAppId",
+      };
+    }
+
+    if (records.length > 0) {
+      const recordIds = records.map((record: any) => record["$id"].value);
+      await deleteAllConfigurationRecordsBy(
+        dropbox_configuration_app_id,
+        recordIds
+      );
+    }
+
+    records = await restClient.record.getAllRecords({
       app: kintone.app.getId(),
     });
 
-    console.log(selectedFolderId)
-    console.log(memberId)
-    console.log(accessToken)
+    const configurationRecord = await getRootConfigurationRecord(
+      dropbox_configuration_app_id
+    );
 
-    // this.dbx = new Dropbox({
-    //   // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
-    //   accessToken: accessToken,
-    //   selectUser: memberId,
-    //   pathRoot: `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}}"`,
-    // });
+    if (!!configurationRecord) {
+      await updateRootRecord(
+        dropbox_configuration_app_id,
+        configurationRecord["$id"].value,
+        {
+          root_folder_name: { value: folderName },
+          dropbox_folder_id: { value: selectedFolderId }
+        }
+      );
+    } else {
+      await addRootRecord(
+        dropbox_configuration_app_id,
+        folderName,
+        selectedFolderId
+      );
+    }
 
-    // Success
-    // this.dbx = new Dropbox({
-    //   // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
-    //   accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
-    //   selectUser: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
-    //   pathRoot: `{".tag": "namespace_id", "namespace_id": "9692023760"}`,
-    //   // selectAdmin: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
-    //   // selectAdmin: "dbmid:AADfBeFJwtEHc0NmVBKW8ZQ9vfg-xH5Z530",
-    // });
-
-    console.log("9692023760")
-    console.log(`${selectedFolderId}`)
-    // selectedFolderId
     this.dbx = new Dropbox({
-      // accessToken: "CFZfmbl3QhIAAAAAAAAAAbk5WEQZuznUfQIMRILOmonwmeRogeevOH3nmfGmUTaI",
       accessToken: `${accessToken}`,
       selectUser: `${memberId}`,
       pathRoot: `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}"}`,
-      // selectAdmin: "dbmid:AAAvmCflrU_j54NC9yq-5sia_jLHOzFSiS8",
-      // selectAdmin: "dbmid:AADfBeFJwtEHc0NmVBKW8ZQ9vfg-xH5Z530",
     });
 
     const childFolders = records.map((record) => {
@@ -272,27 +274,28 @@ export default class DropboxConfiguration extends Component {
       return `/${folder.name}`;
     });
 
-    console.log(childFolderPaths)
+    console.log(folderName)
 
     await this.dbx.filesCreateFolderBatch({ paths: childFolderPaths, autorename: true });
-    // await this.dbx.filesCreateFolderV2({ path: '/minh_test7', autorename: true });
-    // const a = await this.dbx.sharingShareFolder({
-    //   path: '/minh_test6',
-    //   acl_update_policy: 'editors',
-    //   force_async: false,
-    //   member_policy: 'team',
-    //   shared_link_policy: 'team',
-    //   access_inheritance: 'inherit'
-    // })
+    // Retrieve all folder in this root path for finding and creating configuration record.
+    // if we use the response from filesCreateFolderBatch then cannot get folder name if failed on creation
+    const filesListFolderResponse = await this.dbx.filesListFolder({path: ''});
 
-    // const a = await  this.dbx.filesCreateFolderV2({
-    //   path: '/minh_test6'
-    // })
+    await Promise.all(
+      filesListFolderResponse.result.entries.map(async (entry: any) => {
+        const folderRecord = find(childFolders, { name: entry.name });
+        if (!!folderRecord) {
+          await addChildFolderRecord(
+            dropbox_configuration_app_id,
+            folderName,
+            entry.id,
+            folderRecord.id,
+            entry.name
+          );
+        }
+      })
+    );
 
-    // const a = await this.dbx.teamTeamFolderCreate({
-    //   name: 'testing 1/minh_testing1'
-    // })
-    // console.log(a)
   }
 
   async handleClickSaveButton() {

@@ -5,7 +5,7 @@ import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 
-
+import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
 import UploadFileDialog from './components/uploadFileDialog'
@@ -23,10 +23,6 @@ import {
 } from '../../utils/notifications'
 
 import './style.sass'
-import { ControlPointDuplicateTwoTone } from '@material-ui/icons';
-import { config } from 'dotenv';
-
-
 export default class RecordDetail extends Component {
   constructor(props) {
     super(props)
@@ -45,10 +41,7 @@ export default class RecordDetail extends Component {
     this.onOpenDialogEditNameFolder = this.onOpenDialogEditNameFolder.bind(this)
     this.editChildFolderName = this.editChildFolderName.bind(this)
 
-    this.dbx = new Dropbox({ accessToken: props.config.accessToken })
-
-    // TODO: Need to be updated by plugin config
-    const rootPath = ""
+    let rootPath = ''
 
     this.state = {
       currentPathLower: rootPath,
@@ -68,6 +61,27 @@ export default class RecordDetail extends Component {
   }
 
   async getFolderRoot() {
+    const result = await validateDropboxToken(this.props.config.accessToken);
+
+    if (result["status"] == "invalidKey") {
+      showNotificationError(
+        "Invalid access token, please generate a new one."
+      );
+    } else if (result["status"] == "unauthorized") {
+      showNotificationError(
+        "Invalid access token, please generate a new one."
+      );
+    } else if (result["status"] == "businessAccount") {
+      const { config } = this.props
+      this.dbx = new Dropbox({
+        selectUser: `${config.memberId}`,
+        pathRoot: `{".tag": "namespace_id", "namespace_id": "${config.selectedFolderId}"}`,
+        accessToken: config.accessToken
+      })
+    } else if (result["status"] == "individualAccount") {
+      this.dbx = new Dropbox({ accessToken: this.props.config.accessToken })
+    }
+
     const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();
     if (!!response['errorCode']) {
       return;
@@ -99,7 +113,7 @@ export default class RecordDetail extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
-
+      console.log(metadataResponse)
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // this means folder already deleted on dropbox, need to create it again
         const rootPath = `/${configurationRecord['root_folder_name'].value}/${configurationRecord['dropbox_folder_name'].value}`
@@ -134,7 +148,10 @@ export default class RecordDetail extends Component {
       }
 
       const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
+      console.log(folderName)
+
       const rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${folderName}`
+      console.log(rootPath)
       const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
         path: rootPath, autorename: true
       })

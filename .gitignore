@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .env
+plugin/js/config.js
+plugin/js/desktop.js
+plugin/js/mobile.js

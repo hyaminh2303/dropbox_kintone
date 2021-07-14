@@ -530,7 +530,7 @@ export default class DropboxConfiguration extends Component {
   }
 
   async validateAccessToken() {
-    let { accessToken } = this.state;
+    let { accessToken, memberId } = this.state;
     this.setState({ isBlockUI: true });
     try {
       const result = await validateDropboxToken(accessToken);
@@ -546,7 +546,11 @@ export default class DropboxConfiguration extends Component {
         );
       } else if (result["status"] == "businessAccount") {
         // showNotificationError("Currently this plugin doesn't support business account, because Dropbox Api doesn't support creating a folder inside team folder.")
-        this.handleGetMembers();
+        const memberList = await this.handleGetMembers();
+        const currentMember = find(memberList, { value: memberId });
+        if(!!currentMember) {
+          await this.handleChangeMember(currentMember);
+        }
       } else if (result["status"] == "individualAccount") {
         // logic for individualAccount if needed
         const filesListFolderResponse = await this.dbx.filesListFolder({
@@ -638,6 +642,8 @@ export default class DropboxConfiguration extends Component {
       isDropboxBusinessAPI: true,
       hasBeenValidated: true,
     });
+
+    return membersList;
   }
 
   UNSAFE_componentWillMount() {
@@ -662,6 +668,10 @@ export default class DropboxConfiguration extends Component {
       if (!configurationRecord) {
         // this mean first setup plugin
         return;
+      }
+
+      if(!!accessToken) {
+        await this.validateAccessToken(accessToken);
       }
 
       this.dbx = new Dropbox({ accessToken: accessToken });
@@ -796,7 +806,13 @@ export default class DropboxConfiguration extends Component {
               <Label text="Root folder name" isRequired={false} />
               <RadioButton
                 name="chooseFolderMethods"
-                items={chooseFolderMethods}
+                items={!isDropboxBusinessAPI
+                  ? chooseFolderMethods
+                  : [{
+                    label: "Select an existing folder",
+                    value: "select",
+                  }]
+                }
                 value={chooseFolderMethod}
                 onChange={(value) => {
                   this.setState({ chooseFolderMethod: value });

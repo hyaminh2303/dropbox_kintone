@@ -49,6 +49,7 @@ class PluginSettings extends Component {
       selectedFolderId: config.selectedFolderId,
       chooseFolderMethod: config.chooseFolderMethod,
       dropboxAppKey: config.dropboxAppKey,
+      memberId: config.memberId || '',
       formFields: []
     });
   }

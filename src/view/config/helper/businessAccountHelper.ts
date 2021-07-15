@@ -12,6 +12,11 @@ import {
   updateRootRecord
 } from "../../../utils/recordsHelper";
 
+export const checkUrl = async (url: string) => {
+  const result = await kintone.proxy(url, 'GET', {}, {});
+  console.log(result);
+}
+
 export const getTeamMembers = async (dbx: any, accessToken: string) => {
   if (accessToken == "") {
     showNotificationError("Please enter access token");
@@ -54,6 +59,8 @@ export const getExistingFoldersList = async (member: any, accessToken: string) =
     return entry.is_inside_team_folder;
   })
   .map((entry: any) => {
+    console.log('entry', entry);
+    checkUrl(entry.preview_url);
     return { label: entry.name, value: entry.shared_folder_id };
   });
 

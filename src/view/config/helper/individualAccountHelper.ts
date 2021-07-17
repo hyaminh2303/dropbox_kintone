@@ -22,6 +22,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     selectedFolderId,
     createOrSelectExistingFolder,
     dropboxAppKey,
+    isBusinessAccount,
+    isValidAccessToken
   } = params;
   const rootFolder = "";
 
@@ -40,6 +42,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     folderName: folderName,
     dropbox_configuration_app_id: dropbox_configuration_app_id,
     createOrSelectExistingFolder: createOrSelectExistingFolder,
+    isBusinessAccount: isBusinessAccount,
+    isValidAccessToken: isValidAccessToken,
   };
 
   if (!!selectedFolderId) {

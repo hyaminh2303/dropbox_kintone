@@ -5,6 +5,7 @@ import { Dropbox, Error, files } from 'dropbox'
 import { Button } from '@material-ui/core';
 import { FileIcon, defaultStyles } from 'react-file-icon';
 
+import { setStateAsync } from "../../utils/stateHelper";
 import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
 import BreadcrumbNavigation from './components/breadcrumbNavigation'
 import DropboxPreviewDialog from './components/dropboxPreviewDialog'
@@ -40,6 +41,7 @@ export default class RecordDetail extends Component {
     this.requestDropbox = this.requestDropbox.bind(this)
     this.onOpenDialogEditNameFolder = this.onOpenDialogEditNameFolder.bind(this)
     this.editChildFolderName = this.editChildFolderName.bind(this)
+    this.validateDropboxAccessToken = this.validateDropboxAccessToken.bind(this)
 
     let rootPath = ''
 
@@ -52,7 +54,9 @@ export default class RecordDetail extends Component {
       isDialogFolderFormVisible: false,
       isDialogRenameFolderFormVisible: false,
       previewPath: null,
-      dropboxEntry: null
+      dropboxEntry: null,
+      isValidAccessToken: false,
+      isBusinessAccount: false,
     }
   }
 
@@ -60,8 +64,9 @@ export default class RecordDetail extends Component {
     this.getFolderRoot()
   }
 
-  async getFolderRoot() {
-    const result = await validateDropboxToken(this.props.config.accessToken);
+  async validateDropboxAccessToken() {
+    const { config: { accessToken } } = this.props;
+    const result: any = await validateDropboxToken(accessToken);
 
     if (result["status"] == "invalidKey") {
       showNotificationError(
@@ -71,18 +76,41 @@ export default class RecordDetail extends Component {
       showNotificationError(
         "Invalid access token, please generate a new one."
       );
+    } else if (result["status"] == "appPermissionError") {
+      await setStateAsync({
+        isValidAccessToken: false
+      }, this);
     } else if (result["status"] == "businessAccount") {
-      const { config } = this.props
-      this.dbx = new Dropbox({
-        selectUser: `${config.memberId}`,
-        pathRoot: `{".tag": "namespace_id", "namespace_id": "${config.selectedFolderId}"}`,
-        accessToken: config.accessToken
-      })
+      await setStateAsync({
+        isBusinessAccount: true,
+        isValidAccessToken: true
+      }, this);
     } else if (result["status"] == "individualAccount") {
-      this.dbx = new Dropbox({ accessToken: this.props.config.accessToken })
+      await setStateAsync({
+        isBusinessAccount: false,
+        isValidAccessToken: true
+      }, this);
+    }
+  }
+
+  async getFolderRoot() {
+    const { config, config: { accessToken } } = this.props;
+
+    await this.validateDropboxAccessToken()
+
+    if (!this.state.isValidAccessToken) {
+      return;
+    }
+
+    this.dbx = new Dropbox({ accessToken: accessToken })
+
+    if (this.state.isBusinessAccount) {
+      this.dbx.selectUser = `${config.memberId}`
+      this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${config.selectedFolderId}"}`
     }
 
     const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();
+
     if (!!response['errorCode']) {
       return;
     }
@@ -106,6 +134,7 @@ export default class RecordDetail extends Component {
     }
 
     if (!!configurationRecord) {
+      // Get dropbox folder by ID, so even individual or business account are same
       const metadataResponse = await this.dbx.filesGetMetadata({
         path: configurationRecord.dropbox_folder_id.value
       }).catch((error: any) => {
@@ -113,12 +142,24 @@ export default class RecordDetail extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
-      console.log(metadataResponse)
+
       if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // this means folder already deleted on dropbox, need to create it again
-        const rootPath = `/${configurationRecord['root_folder_name'].value}/${configurationRecord['dropbox_folder_name'].value}`
+        let rootPath;
+        if (this.state.isBusinessAccount) {
+          rootPath = `/${configurationRecord['dropbox_folder_name'].value}`
+        } else{
+          rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${configurationRecord['dropbox_folder_name'].value}`
+        }
+
         const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
           path: rootPath, autorename: true
+        })
+
+        console.log("createFolderResponse", createFolderResponse)
+
+        await updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
+          dropbox_folder_id: { value: createFolderResponse.result.id }
         })
 
         return {
@@ -147,11 +188,22 @@ export default class RecordDetail extends Component {
         }
       }
 
-      const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
-      console.log(folderName)
+      if (!rootConfigurationRecord) {
+        showNotificationError("");
+        return {
+          errorCode: 'Missing Root Configuration, please visit plugin settings to update it!'
+        }
+      }
 
-      const rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${folderName}`
-      console.log(rootPath)
+      const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
+
+      let rootPath;
+      if (this.state.isBusinessAccount) {
+        rootPath = `/${folderName}`
+      } else{
+        rootPath = `/${rootConfigurationRecord['root_folder_name'].value}/${folderName}`
+      }
+
       const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
         path: rootPath, autorename: true
       })
@@ -163,6 +215,8 @@ export default class RecordDetail extends Component {
         record['$id'].value,
         createFolderResponse.result.metadata.name
       )
+
+      console.log("createFolderResponse", createFolderResponse)
 
       return {
         path: createFolderResponse.result.metadata.path_lower
@@ -304,10 +358,11 @@ export default class RecordDetail extends Component {
   }
 
   render() {
+    const { config } = this.props
     const {
       dropboxEntries, currentPathDisplay, currentPathLower,
       isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible,
-      previewPath, isDialogRenameFolderFormVisible
+      previewPath, isDialogRenameFolderFormVisible, isBusinessAccount
     } = this.state
 
     return(
@@ -316,6 +371,8 @@ export default class RecordDetail extends Component {
           <div className="dropbox-detail-border">
 
             <BreadcrumbNavigation
+              config = {config}
+              isBusinessAccount={isBusinessAccount}
               currentPathDisplay={currentPathDisplay}
               currentPathLower={currentPathLower}
               navigateByBreadcrumb={this.navigateByBreadcrumb}

@@ -1,12 +1,8 @@
 import React, { Component } from "react";
 import ReactDOM from "react-dom";
-import { KintoneRestAPIClient } from "@kintone/rest-api-client";
-import { forEach } from "lodash";
 
-import { showNotificationError } from "../utils/notifications";
 import DropboxConfiguration from "../view/config/dropboxConfiguration";
 import "../view/config/style.sass";
-import { validateDropboxToken } from "../utils/dropboxAccessTokenValidation";
 
 class PluginSettings extends Component {
   constructor(props) {
@@ -20,7 +16,6 @@ class PluginSettings extends Component {
     const { pluginId } = this.props;
     const currentConfig = kintone.plugin.app.getConfig(pluginId);
 
-    console.log(currentConfig);
     const newConfig = Object.assign(currentConfig, values);
 
     kintone.plugin.app.setConfig(newConfig, () => {

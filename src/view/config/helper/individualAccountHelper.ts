@@ -25,11 +25,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
   } = params;
   const rootFolder = "";
 
-  console.log('params', params);
-
   const createFolderResponse = await findOrCreateRootFolder(params, rootFolder, oldConfig, dbx);
-
-  console.log('createFolderResponse', createFolderResponse)
 
   if (!!createFolderResponse["errorCode"]) {
     return;
@@ -301,8 +297,6 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
             errorCode: "invalidFolderName",
           };
         });
-
-      console.log("createFolderResponse", createFolderResponse);
 
       if (createFolderResponse["errorCode"] == "invalidFolderName") {
         showNotificationError(

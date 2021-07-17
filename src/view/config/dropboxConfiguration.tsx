@@ -32,6 +32,7 @@ export default class DropboxConfiguration extends Component {
     this.validateDropboxAccessToken = this.validateDropboxAccessToken.bind(this);
     this.handleLogicsForValidateAccessToken = this.handleLogicsForValidateAccessToken.bind(this);
     this.handleChangeMember = this.handleChangeMember.bind(this);
+    this.handleLogicsAfterMounted = this.handleLogicsAfterMounted.bind(this);
 
     this.state = {
       accessToken: "",
@@ -69,30 +70,35 @@ export default class DropboxConfiguration extends Component {
   async handleClickSaveButton() {
     const {
       accessToken,
-      isValidAccessToken,
       selectedField,
       isBusinessAccount,
     } = this.state;
 
-    if (accessToken === "" || selectedField === "") {
-      showNotificationError("All fields are requied!");
-    } else {
-      // if not business account
-      if (isBusinessAccount) {
-        await businessAccHelper.saveConfigurations(
-          this.state,
-          this.props.setPluginConfig,
-          this.props.config,
-          this.dbx
-        )
+    this.setState({isBlockUI: true})
+    try {
+      if (accessToken === "" || selectedField === "") {
+        showNotificationError("All fields are requied!");
       } else {
-        await individualAccHelper.saveConfigurations(
-          this.state,
-          this.props.setPluginConfig,
-          this.props.config,
-          this.dbx
-        )
+        // if not business account
+        if (isBusinessAccount) {
+          await businessAccHelper.saveConfigurations(
+            this.state,
+            this.props.setPluginConfig,
+            this.props.config,
+            this.dbx
+          )
+        } else {
+          await individualAccHelper.saveConfigurations(
+            this.state,
+            this.props.setPluginConfig,
+            this.props.config,
+            this.dbx
+          )
+        }
       }
+      this.setState({isBlockUI: false})
+    } catch (error) {
+      this.setState({isBlockUI: false})
     }
   }
 
@@ -175,6 +181,81 @@ export default class DropboxConfiguration extends Component {
     }
   }
 
+  async handleLogicsAfterMounted() {
+    // Get Root Folder
+    const { dropbox_configuration_app_id, accessToken, selectedFolderId } = this.state;
+
+    if (!accessToken && !dropbox_configuration_app_id) {
+      return;
+    }
+
+    const configurationRecord = await getRootConfigurationRecord(
+      dropbox_configuration_app_id
+    );
+
+    if (!!configurationRecord && !!configurationRecord["errorCode"]) {
+      // this mean wrong dropbox_configuration_app_id
+      showNotificationError("Please enter correct configuration app id!");
+      return;
+    }
+
+    await this.handleLogicsForValidateAccessToken()
+
+    if (!configurationRecord) {
+
+      // this mean never finished setup before
+      return;
+    }
+
+    if (!selectedFolderId) {
+      // this means user didnt select dropbox folder
+      return;
+    }
+
+    if (!this.state.isValidAccessToken) {
+      // the access token is not valid
+      return;
+    }
+
+    const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
+
+    let metadataResponse: any;
+    if (this.state.isBusinessAccount) {
+      metadataResponse = await businessAccHelper.getSelectedDropboxFolder(
+        this.dbx, accessToken, this.state.memberId, dropboxFolderId
+      )
+    } else {
+      metadataResponse = await individualAccHelper.getSelectedDropboxFolder(this.dbx, dropboxFolderId)
+    }
+
+    if (metadataResponse["errorCode"] == "notFoundFolderOnDropbox") {
+      // need to re-create folder here, because it was deleted on drobox
+      return;
+    }
+
+    let newState: any = {
+      folderName: metadataResponse.result.name,
+    };
+
+    let selectedFolder = find(this.state.existingFoldersList, {
+      value: dropboxFolderId,
+    });
+
+    if (!!selectedFolder) {
+      newState["selectedFolderId"] = selectedFolder.value;
+    }
+
+    this.setState(newState);
+
+    await updateRootRecord(
+      dropbox_configuration_app_id,
+      configurationRecord["$id"].value,
+      {
+        root_folder_name: { value: metadataResponse.result.name },
+      }
+    );
+  }
+
   UNSAFE_componentWillMount() {
     let formFields: any = [];
 
@@ -202,79 +283,10 @@ export default class DropboxConfiguration extends Component {
       membersList: [],
       isBusinessAccount: false,
     }, async () => {
-
-      // Get Root Folder
-      const { dropbox_configuration_app_id, accessToken, selectedFolderId } = this.state;
-
-      if (!accessToken && !dropbox_configuration_app_id) {
-        return;
-      }
-
-      const configurationRecord = await getRootConfigurationRecord(
-        dropbox_configuration_app_id
-      );
-
-      if (!!configurationRecord && !!configurationRecord["errorCode"]) {
-        // this mean wrong dropbox_configuration_app_id
-        showNotificationError("Please enter correct configuration app id!");
-        return;
-      }
-
-      await this.handleLogicsForValidateAccessToken()
-
-      if (!configurationRecord) {
-        // this mean never finished setup before
-        return;
-      }
-
-      if (!selectedFolderId) {
-        // this means user didnt select dropbox folder
-        return;
-      }
-
-      if (!this.state.isValidAccessToken) {
-        // the access token is not valid
-        return;
-      }
-
-      const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
-
-      let metadataResponse: any;
-      if (this.state.isBusinessAccount) {
-        metadataResponse = await businessAccHelper.getSelectedDropboxFolder(
-          this.dbx, accessToken, this.state.memberId, dropboxFolderId
-        )
-      } else {
-        metadataResponse = await individualAccHelper.getSelectedDropboxFolder(this.dbx, dropboxFolderId)
-      }
-
-      if (metadataResponse["errorCode"] == "notFoundFolderOnDropbox") {
-        // need to re-create folder here, because it was deleted on drobox
-        return;
-      }
-
-      let newState: any = {
-        folderName: metadataResponse.result.name,
-      };
-
-      let selectedFolder = find(this.state.existingFoldersList, {
-        value: dropboxFolderId,
-      });
-
-      if (!!selectedFolder) {
-        newState["selectedFolderId"] = selectedFolder.value;
-      }
-
-      this.setState(newState);
-
-      updateRootRecord(
-        dropbox_configuration_app_id,
-        configurationRecord["$id"].value,
-        {
-          root_folder_name: { value: metadataResponse.result.name },
-        }
-      );
-    });
+      this.setState({isBlockUI: true})
+      await this.handleLogicsAfterMounted()
+      this.setState({isBlockUI: false})
+    })
   }
 
   render() {

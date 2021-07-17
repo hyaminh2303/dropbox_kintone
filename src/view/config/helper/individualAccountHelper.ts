@@ -13,30 +13,29 @@ import {
   updateRootRecord
 } from "../../../utils/recordsHelper";
 
-export const saveConfigsForIndividualAccount = async (param: any, callback: Function, ROOT_FOLDER: string, propfolderName: string, dbx: any) => {
+export const saveConfigurations = async (params: any, onSaveConfigurationSuccess: Function, oldConfig: any, dbx: any) => {
   const {
     accessToken,
     folderName,
     selectedField,
     dropbox_configuration_app_id,
     selectedFolderId,
-    chooseFolderMethod,
+    createOrSelectExistingFolder,
     dropboxAppKey,
-  } = param;
-  const rootFolder = ROOT_FOLDER || "";
+  } = params;
+  const rootFolder = "";
 
-  console.log('param', param);
+  console.log('params', params);
 
-  const createFolderResponse = await findOrCreateRootFolderForIndividualAccount(param, rootFolder, propfolderName);
-
+  const createFolderResponse = await findOrCreateRootFolder(params, rootFolder, oldConfig, dbx);
 
   console.log('createFolderResponse', createFolderResponse)
-
-  const restClient = new KintoneRestAPIClient();
 
   if (!!createFolderResponse["errorCode"]) {
     return;
   }
+
+  const restClient = new KintoneRestAPIClient();
 
   const config = {
     accessToken: accessToken,
@@ -44,12 +43,14 @@ export const saveConfigsForIndividualAccount = async (param: any, callback: Func
     selectedField: selectedField,
     folderName: folderName,
     dropbox_configuration_app_id: dropbox_configuration_app_id,
-    chooseFolderMethod: chooseFolderMethod,
+    createOrSelectExistingFolder: createOrSelectExistingFolder,
   };
+
   if (!!selectedFolderId) {
     config["selectedFolderId"] = selectedFolderId;
   }
-  callback(config);
+
+  onSaveConfigurationSuccess(config);
 
   let recordIds: any = [];
   if (createFolderResponse["actionType"] == "create") {
@@ -128,26 +129,24 @@ export const saveConfigsForIndividualAccount = async (param: any, callback: Func
   }
 }
 
-export const findOrCreateRootFolderForIndividualAccount = async (param: any, ROOT_FOLDER:string, propfolderName: string) => {
+export const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig: any, dbx) => {
   const {
     dropbox_configuration_app_id,
-    chooseFolderMethod,
+    createOrSelectExistingFolder,
     folderName,
-    hasBeenValidated,
-    isDropboxBusinessAPI,
     accessToken,
     selectedFolderId,
-  } = param;
-  let dbx = null;
-  const rootFolder = ROOT_FOLDER || "";
+  } = params;
 
   const configurationRecord = await getRootConfigurationRecord(
     dropbox_configuration_app_id
   );
-
+    console.log(configurationRecord)
+    console.log(oldConfig.folderName)
+    console.log(folderName)
   if (
-    chooseFolderMethod === "select" &&
-    folderName !== propfolderName
+    createOrSelectExistingFolder === "select" &&
+    folderName !== oldConfig.folderName
   ) {
     const records = await getConfigurationRecordsByTargetAppRecordId(
       dropbox_configuration_app_id
@@ -179,45 +178,35 @@ export const findOrCreateRootFolderForIndividualAccount = async (param: any, ROO
     };
   }
 
-  let authResponse;
-  if (hasBeenValidated && !isDropboxBusinessAPI) {
-    dbx = new Dropbox({ accessToken: accessToken });
-    authResponse = await dbx
-      .filesListFolder({ path: "" })
-      .catch((error) => {
-        return {
-          errorCode: "invalidDropboxAccessToken",
-        };
-      });
-  } else if (hasBeenValidated && isDropboxBusinessAPI) {
-    authResponse = await dbx.sharingListFolders().catch((error) => {
-      return {
-        errorCode: "invalidDropboxAccessToken",
-      };
-    });
-  }
-
-  if (authResponse["errorCode"] == "invalidDropboxAccessToken") {
-    showNotificationError("Please enter correct Dropbox access token");
-    return {
-      errorCode: authResponse["errorCode"],
-    };
-  }
-
-  if (chooseFolderMethod === "select") {
+  if (createOrSelectExistingFolder === "select") {
     console.log("Action select existing folder");
-    // const { selectedFolderId, folderName } = this.state;
-    const rootPath = `${rootFolder}/${folderName}`;
-    await addRootRecord(
-      dropbox_configuration_app_id,
-      folderName,
-      selectedFolderId
-    );
 
-    return {
-      actionType: "create",
-      path: rootPath,
-    };
+    const rootPath = `${rootFolder}/${folderName}`;
+
+    if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName) {
+      await updateRootRecord(
+        dropbox_configuration_app_id,
+        configurationRecord["$id"].value,
+        {
+          root_folder_name: { value: folderName }
+        }
+      );
+      return {
+        actionType: "edit",
+        path: rootPath,
+      };
+
+    } else {
+      await addRootRecord(
+        dropbox_configuration_app_id,
+        folderName,
+        selectedFolderId
+      );
+      return {
+        actionType: "create",
+        path: rootPath,
+      };
+    }
   } else if (!!configurationRecord) {
     // need to update folder name
     console.log("Action Update");
@@ -340,4 +329,38 @@ export const findOrCreateRootFolderForIndividualAccount = async (param: any, ROO
       path: rootPath,
     };
   }
+}
+
+export const getExistingFoldersList = async (dbx) => {
+  const filesListFolderResponse = await dbx.filesListFolder({
+    path: "",
+  });
+
+  const {
+    result: { entries },
+  } = filesListFolderResponse;
+  const listFolders = entries
+    .filter((e) => {
+      return e[".tag"] == "folder";
+    })
+    .map((e) => {
+      return {
+        label: e.name,
+        value: e.id,
+      };
+    });
+
+    return listFolders;
+}
+
+export const getSelectedDropboxFolder = async (dbx, selectedFolderId) => {
+  const metadataResponse = await dbx
+    .filesGetMetadata({ path: selectedFolderId })
+    .catch((error: any) => {
+      return {
+        errorCode: "notFoundFolderOnDropbox",
+      };
+    });
+
+  return metadataResponse;
 }

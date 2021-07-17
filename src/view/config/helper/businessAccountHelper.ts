@@ -12,11 +12,6 @@ import {
   updateRootRecord
 } from "../../../utils/recordsHelper";
 
-export const checkUrl = async (url: string) => {
-  const result = await kintone.proxy(url, 'GET', {}, {});
-  console.log(result);
-}
-
 export const getTeamMembers = async (dbx: any, accessToken: string) => {
   if (accessToken == "") {
     showNotificationError("Please enter access token");
@@ -35,39 +30,39 @@ export const getTeamMembers = async (dbx: any, accessToken: string) => {
   } = teamMemberListResponse;
 
   members.forEach((member) => {
-    const param = {
+    const params = {
       label: `${member.profile.name.display_name}<${member.profile.email}>`,
       value: member.profile.team_member_id,
     };
-    membersList.push(param);
+    membersList.push(params);
   });
 
   return membersList;
 }
 
-export const getExistingFoldersList = async (member: any, accessToken: string) => {
-  let dbx = new Dropbox({
+export const getExistingFoldersList = async (memberId: string, accessToken: string) => {
+  const dbx = new Dropbox({
     accessToken: accessToken,
-    selectUser: member.value,
+    selectUser: memberId,
   });
+
   const sharingListFolders = await dbx.sharingListFolders({
     actions: ["edit_contents"],
   });
 
   let existingFoldersList = sharingListFolders.result.entries
-  .filter((entry: any) => {
-    return entry.is_inside_team_folder;
-  })
-  .map((entry: any) => {
-    console.log('entry', entry);
-    checkUrl(entry.preview_url);
-    return { label: entry.name, value: entry.shared_folder_id };
-  });
+    .filter((entry: any) => {
+      return entry.is_inside_team_folder;
+    })
+    .map((entry: any) => {
+      return { label: entry.name, value: entry.shared_folder_id };
+    });
 
   return existingFoldersList;
 }
 
-export const saveConfigsForBusinessAccount = async (param: any, setPluginConfig: Function) => {
+export const saveConfigurations = async (params: any, onSaveConfigurationSuccess: Function, oldConfig: any, dbx: any) => {
+
   const {
     accessToken,
     selectedField,
@@ -75,10 +70,9 @@ export const saveConfigsForBusinessAccount = async (param: any, setPluginConfig:
     memberId,
     selectedFolderId,
     folderName
-  } = param;
-  let dbx = null;
+  } = params;
 
-  setPluginConfig({
+  onSaveConfigurationSuccess({
     accessToken: accessToken,
     selectedField: selectedField,
     dropbox_configuration_app_id: dropbox_configuration_app_id,
@@ -134,11 +128,8 @@ export const saveConfigsForBusinessAccount = async (param: any, setPluginConfig:
     );
   }
 
-  dbx = new Dropbox({
-    accessToken: `${accessToken}`,
-    selectUser: `${memberId}`,
-    pathRoot: `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}"}`,
-  });
+  dbx.selectUser = `${memberId}`;
+  dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}"}`;
 
   const childFolders = records.map((record) => {
     return {
@@ -173,4 +164,22 @@ export const saveConfigsForBusinessAccount = async (param: any, setPluginConfig:
     })
   );
 
+}
+
+export const getSelectedDropboxFolder = async (dbx, accessToken, memberId, selectedFolderId) => {
+  const existingFoldersList = await getExistingFoldersList(memberId, accessToken)
+
+  const folderRecord = find(existingFoldersList, { value: selectedFolderId });
+  if (!!folderRecord) {
+    return {
+      result: {
+        name: folderRecord.label,
+        id: folderRecord.value
+      }
+    };
+  } else {
+    return {
+      errorCode: "notFoundFolderOnDropbox",
+    }
+  }
 }

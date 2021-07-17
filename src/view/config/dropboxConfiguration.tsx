@@ -2,30 +2,26 @@ import React, { Component } from "react";
 import {
   Text,
   Label,
-  Dropdown,
-  RadioButton,
-  Dialog
+  RadioButton
 } from "@kintone/kintone-ui-component";
-import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
-import { KintoneRestAPIClient } from "@kintone/rest-api-client";
-import { find } from "lodash";
+import { Dropbox } from "dropbox"; // eslint-disable-line no-unused-vars
+import { find, forEach } from "lodash";
+
+import { setStateAsync } from "../../utils/stateHelper";
+import Fields from "../../utils/Fields";
 import Select from "react-select";
 
 import { showNotificationError } from "../../utils/notifications";
 import {
   getRootConfigurationRecord,
-  updateRootRecord,
-  addRootRecord,
-  addChildFolderRecord,
-  getConfigurationRecordsByTargetAppRecordId,
-  deleteAllConfigurationRecordsBy,
-  getConfigurationRecord,
+  updateRootRecord
 } from "../../utils/recordsHelper";
 import "./style.sass";
 import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
 import Loading from "../../components/loading";
-import { saveConfigsForIndividualAccount } from "./helper/individualAccountHelper";
-import { getExistingFoldersList, getTeamMembers, saveConfigsForBusinessAccount } from "./helper/businessAccountHelper";
+
+import * as businessAccHelper from "./helper/businessAccountHelper";
+import * as individualAccHelper from "./helper/individualAccountHelper";
 
 const ROOT_FOLDER = "";
 export default class DropboxConfiguration extends Component {
@@ -33,42 +29,36 @@ export default class DropboxConfiguration extends Component {
     super(props);
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.handleGetMembers = this.handleGetMembers.bind(this);
-    this.validateAccessToken = this.validateAccessToken.bind(this);
+    this.validateDropboxAccessToken = this.validateDropboxAccessToken.bind(this);
+    this.handleLogicsForValidateAccessToken = this.handleLogicsForValidateAccessToken.bind(this);
     this.handleChangeMember = this.handleChangeMember.bind(this);
-    this.saveConfigurationsForIndividualAccount = this.saveConfigurationsForIndividualAccount.bind(this);
-    this.saveConfigurationsForBusinessAccount =
-      this.saveConfigurationsForBusinessAccount.bind(this);
 
-    const chooseFolderMethods = [
-      {
-        label: "Input folder name",
-        value: "input",
-        isDisabled: false,
-      },
-      {
-        label: "Select an existing folder",
-        value: "select",
-        isDisabled: false,
-      },
-    ];
-
-    this.dbx = null;
     this.state = {
-      accessToken: props.accessToken,
-      dropboxAppKey: props.dropboxAppKey,
-      folderName: props.folderName,
-      dropbox_configuration_app_id: props.dropbox_configuration_app_id,
-      selectedField: props.selectedField,
+      accessToken: "",
+      dropboxAppKey: "",
+      folderName: "",
+      dropbox_configuration_app_id: "",
+      selectedField: "",
       membersList: [],
-      memberId: props.memberId,
-      isDropboxBusinessAPI: false,
-      hasBeenValidated: !!props.accessToken,
-      chooseFolderMethods: chooseFolderMethods,
-      chooseFolderMethod: props.chooseFolderMethod || "input",
+      memberId: "",
+      isValidAccessToken: false,
+      createOrSelectExistingFolder: "",
       existingFoldersList: [],
-      selectedFolderId: props.selectedFolderId,
+      selectedFolderId: "",
       isBlockUI: false,
+      isBusinessAccount: false,
+      createOrSelectExistingFolderOptions: [
+        {
+          label: "Input folder name",
+          value: "input",
+          isDisabled: false,
+        },
+        {
+          label: "Select an existing folder",
+          value: "select",
+          isDisabled: false,
+        }
+      ],
     };
   }
 
@@ -76,98 +66,62 @@ export default class DropboxConfiguration extends Component {
     window.location.href = "../../" + kintone.app.getId() + "/plugin/";
   }
 
-  async saveConfigurationsForBusinessAccount() {
-    this.setState({ isBlockUI: true });
-
-    await saveConfigsForBusinessAccount({...this.state}, this.props.setPluginConfig)
-
-    this.setState({ isBlockUI: false });
-  }
-
-  async saveConfigurationsForIndividualAccount() {
-    this.setState({ isBlockUI: true });
-    try {
-      await saveConfigsForIndividualAccount({...this.state}, this.props.setPluginConfig, ROOT_FOLDER, this.props.folderName, this.dbx);
-
-      this.setState({ isBlockUI: false });
-    } catch (error) {
-      this.setState({ isBlockUI: false });
-    }
-  }
-
   async handleClickSaveButton() {
     const {
       accessToken,
-      hasBeenValidated,
+      isValidAccessToken,
       selectedField,
-      isDropboxBusinessAPI,
+      isBusinessAccount,
     } = this.state;
 
     if (accessToken === "" || selectedField === "") {
       showNotificationError("All fields are requied!");
     } else {
       // if not business account
-      if (hasBeenValidated && !isDropboxBusinessAPI) {
-        await this.saveConfigurationsForIndividualAccount();
-      } else if (hasBeenValidated && isDropboxBusinessAPI) {
-        await this.saveConfigurationsForBusinessAccount();
+      if (isBusinessAccount) {
+        await businessAccHelper.saveConfigurations(
+          this.state,
+          this.props.setPluginConfig,
+          this.props.config,
+          this.dbx
+        )
+      } else {
+        await individualAccHelper.saveConfigurations(
+          this.state,
+          this.props.setPluginConfig,
+          this.props.config,
+          this.dbx
+        )
       }
     }
   }
 
-  async validateAccessToken() {
-    let { accessToken, memberId } = this.state;
-    this.setState({ isBlockUI: true });
-    try {
-      const result = await validateDropboxToken(accessToken);
-      this.dbx = result["dbx"];
+  async validateDropboxAccessToken() {
+    const { accessToken } = this.state;
+    const result: any = await validateDropboxToken(accessToken);
 
-      if (result["status"] == "invalidKey") {
-        showNotificationError(
-          "Invalid access token, please generate a new one."
-        );
-      } else if (result["status"] == "unauthorized") {
-        showNotificationError(
-          "Invalid access token, please generate a new one."
-        );
-      } else if (result["status"] == "businessAccount") {
-        // showNotificationError("Currently this plugin doesn't support business account, because Dropbox Api doesn't support creating a folder inside team folder.")
-        const memberList = await this.handleGetMembers();
-        const currentMember = find(memberList, { value: memberId });
-        if(!!currentMember) {
-          await this.handleChangeMember(currentMember);
-        }
-      } else if (result["status"] == "individualAccount") {
-        // logic for individualAccount if needed
-        const filesListFolderResponse = await this.dbx.filesListFolder({
-          path: "",
-        });
-        const {
-          result: { entries },
-        } = filesListFolderResponse;
-        const listFolders = entries
-          .filter((e) => {
-            return e[".tag"] == "folder";
-          })
-          .map((e) => {
-            return {
-              label: e.name,
-              value: e.id,
-            };
-          });
-
-        this.setState({
-          hasBeenValidated: true,
-          existingFoldersList: listFolders,
-        });
-      } else if (result["status"] == "appPermissionError") {
-        showNotificationError(
-          "Please check app permission and generate a new access token."
-        );
-      }
-      this.setState({ isBlockUI: false });
-    } catch (error) {
-      this.setState({ isBlockUI: false });
+    if (result["status"] == "invalidKey") {
+      showNotificationError(
+        "Invalid access token, please generate a new one."
+      );
+    } else if (result["status"] == "unauthorized") {
+      showNotificationError(
+        "Invalid access token, please generate a new one."
+      );
+    } else if (result["status"] == "appPermissionError") {
+      await setStateAsync({
+        isValidAccessToken: false
+      }, this);
+    } else if (result["status"] == "businessAccount") {
+      await setStateAsync({
+        isBusinessAccount: true,
+        isValidAccessToken: true
+      }, this);
+    } else if (result["status"] == "individualAccount") {
+      await setStateAsync({
+        isBusinessAccount: false,
+        isValidAccessToken: true
+      }, this);
     }
   }
 
@@ -175,35 +129,82 @@ export default class DropboxConfiguration extends Component {
     const { accessToken } = this.state;
     this.setState({ isBlockUI: true });
 
-    const existingFoldersList = await getExistingFoldersList(member, accessToken);
+    const existingFoldersList = await getExistingFoldersList(
+      member,
+      accessToken
+    );
 
     this.setState({
       memberId: `${member.value}`,
       existingFoldersList: existingFoldersList,
-      isBlockUI: false
+      isBlockUI: false,
     });
   }
 
-  async handleGetMembers() {
-    const { accessToken } = this.state;
-    this.setState({ isBlockUI: true });
+  async handleLogicsForValidateAccessToken() {
+    const { accessToken, memberId } = this.state;
+    await this.validateDropboxAccessToken();
 
-    const membersList = await getTeamMembers(this.dbx, accessToken);
+    if (!this.state.isValidAccessToken) {
+      return;
+    }
 
-    this.setState({
-      membersList: membersList,
-      isDropboxBusinessAPI: true,
-      hasBeenValidated: true,
-      isBlockUI: false,
-    });
+    this.dbx = new Dropbox({ accessToken: accessToken });
 
-    return membersList;
+    if (this.state.isBusinessAccount) {
+      const membersList = await businessAccHelper.getTeamMembers(this.dbx, accessToken);
+      await setStateAsync({
+        membersList: membersList
+      }, this)
+
+      if (!!memberId) {
+        const listFolders = await businessAccHelper.getExistingFoldersList(
+          memberId, accessToken
+        );
+
+        await setStateAsync({
+          existingFoldersList: listFolders
+        }, this);
+      }
+    } else {
+      const listFolders = await individualAccHelper.getExistingFoldersList(this.dbx);
+
+      await setStateAsync({
+        existingFoldersList: listFolders
+      }, this)
+    }
   }
 
   UNSAFE_componentWillMount() {
-    (async () => {
+    let formFields: any = [];
+
+    forEach(Fields, (fieldConfig: any, fieldCode: string) => {
+      if (fieldConfig.type == "SINGLE_LINE_TEXT") {
+        formFields.push({
+          label: fieldConfig.label,
+          value: fieldCode,
+        });
+      }
+    });
+
+    this.setState({
+      accessToken: this.props.accessToken || "",
+      selectedField: this.props.selectedField || "",
+      dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
+      folderName: this.props.folderName || "",
+      selectedFolderId: this.props.selectedFolderId || "",
+      createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
+      dropboxAppKey: this.props.dropboxAppKey || "",
+      memberId: this.props.memberId || "",
+      formFields: formFields,
+      isValidAccessToken: false,
+      existingFoldersList: [],
+      membersList: [],
+      isBusinessAccount: false,
+    }, async () => {
+
       // Get Root Folder
-      const { dropbox_configuration_app_id, accessToken } = this.props;
+      const { dropbox_configuration_app_id, accessToken, selectedFolderId } = this.state;
 
       if (!accessToken && !dropbox_configuration_app_id) {
         return;
@@ -219,38 +220,53 @@ export default class DropboxConfiguration extends Component {
         return;
       }
 
+      await this.handleLogicsForValidateAccessToken()
+
       if (!configurationRecord) {
-        // this mean first setup plugin
+        // this mean never finished setup before
         return;
       }
 
-      await this.validateAccessToken(accessToken);
+      if (!selectedFolderId) {
+        // this means user didnt select dropbox folder
+        return;
+      }
 
-      this.dbx = new Dropbox({ accessToken: accessToken });
+      if (!this.state.isValidAccessToken) {
+        // the access token is not valid
+        return;
+      }
+
       const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
-      const metadataResponse = await this.dbx
-        .filesGetMetadata({ path: dropboxFolderId })
-        .catch((error: any) => {
-          return {
-            errorCode: "notFoundFolderOnDropbox",
-          };
-        });
+
+      let metadataResponse: any;
+      if (this.state.isBusinessAccount) {
+        metadataResponse = await businessAccHelper.getSelectedDropboxFolder(
+          this.dbx, accessToken, this.state.memberId, dropboxFolderId
+        )
+      } else {
+        metadataResponse = await individualAccHelper.getSelectedDropboxFolder(this.dbx, dropboxFolderId)
+      }
 
       if (metadataResponse["errorCode"] == "notFoundFolderOnDropbox") {
         // need to re-create folder here, because it was deleted on drobox
         return;
       }
 
-      let newState = {
+      let newState: any = {
         folderName: metadataResponse.result.name,
       };
-      let selectFolder = find(this.state.existingFoldersList, {
+
+      let selectedFolder = find(this.state.existingFoldersList, {
         value: dropboxFolderId,
       });
-      if (!!selectFolder) {
-        newState["selectedFolderId"] = selectFolder.value;
+
+      if (!!selectedFolder) {
+        newState["selectedFolderId"] = selectedFolder.value;
       }
+
       this.setState(newState);
+
       updateRootRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
@@ -258,27 +274,26 @@ export default class DropboxConfiguration extends Component {
           root_folder_name: { value: metadataResponse.result.name },
         }
       );
-    })();
+    });
   }
 
   render() {
-    const { formFields } = this.props;
-
     const {
+      formFields,
       accessToken,
       folderName,
       selectedField,
       dropbox_configuration_app_id,
       membersList,
       memberId,
-      isDropboxBusinessAPI,
-      hasBeenValidated,
-      chooseFolderMethods,
-      chooseFolderMethod,
+      isBusinessAccount,
+      isValidAccessToken,
+      createOrSelectExistingFolderOptions,
+      createOrSelectExistingFolder,
       existingFoldersList,
       selectedFolderId,
-      isBlockUI,
       dropboxAppKey,
+      isBlockUI,
     } = this.state;
 
     return (
@@ -287,6 +302,7 @@ export default class DropboxConfiguration extends Component {
 
         <div className="tab-content">
           <div>
+
             <div className="kintoneplugin-row kintoneplugin-flex">
               <div>
                 <Label text="Dropbox App Key" isRequired={false} />
@@ -308,7 +324,7 @@ export default class DropboxConfiguration extends Component {
                 <div className="input-config">
                   <Text
                     value={accessToken}
-                    onChange={(value) => this.setState({ accessToken: value })}
+                    onChange={ (value) => this.setState({accessToken: value}) }
                     className="kintoneplugin-input-text"
                   />
                 </div>
@@ -316,14 +332,14 @@ export default class DropboxConfiguration extends Component {
               <div>
                 <button
                   className="kintoneplugin-button-dialog-cancel btn-get-members"
-                  onClick={this.validateAccessToken}
+                  onClick={this.handleLogicsForValidateAccessToken}
                 >
                   Validate access token
                 </button>
               </div>
             </div>
 
-            {isDropboxBusinessAPI && (
+            {isBusinessAccount && (
               <div className="kintoneplugin-row">
                 <Label text="Specified member to use the user endpoints" />
                 <div className="input-config">
@@ -351,23 +367,19 @@ export default class DropboxConfiguration extends Component {
             </div>
 
             <div className="kintoneplugin-row">
-              <Label text="Root folder name" isRequired={false} />
-              <RadioButton
-                name="chooseFolderMethods"
-                items={!isDropboxBusinessAPI
-                  ? chooseFolderMethods
-                  : [{
-                    label: "Select an existing folder",
-                    value: "select",
-                  }]
-                }
-                value={chooseFolderMethod}
-                onChange={(value) => {
-                  this.setState({ chooseFolderMethod: value });
-                }}
-              />
+              <Label text="Root folder" isRequired={false} />
+              {!isBusinessAccount && (
+                <RadioButton
+                  name="createOrSelectExistingFolderOptions"
+                  items={createOrSelectExistingFolderOptions}
+                  value={createOrSelectExistingFolder}
+                  onChange={(value) => {
+                    this.setState({ createOrSelectExistingFolder: value });
+                  }}
+                />
+              )}
 
-              {chooseFolderMethod === "input" ? (
+              {createOrSelectExistingFolder === "input" ? (
                 <div className="input-config">
                   <Text
                     value={folderName}
@@ -383,12 +395,11 @@ export default class DropboxConfiguration extends Component {
                       value: selectedFolderId,
                     })}
                     className="react-select-dropdown"
-                    onChange={(value) =>{
-                      console.log(value)
+                    onChange={(value) => {
                       this.setState({
                         folderName: value.label,
                         selectedFolderId: value.value,
-                      })
+                      });
                     }}
                   />
                   <div>
@@ -402,6 +413,7 @@ export default class DropboxConfiguration extends Component {
                 </div>
               )}
             </div>
+
             <div className="kintoneplugin-row">
               <Label text="Select field for folder name" />
               <div className="input-config">
@@ -428,13 +440,14 @@ export default class DropboxConfiguration extends Component {
 
             <button
               className={`kintoneplugin-button-dialog-ok btn-action ${
-                !hasBeenValidated ? "disabled" : ""
+                !isValidAccessToken ? "disabled" : ""
               }`}
-              onClick={!hasBeenValidated ? null : this.handleClickSaveButton}
+              onClick={isValidAccessToken ? this.handleClickSaveButton : null}
             >
               Save
             </button>
-            {!hasBeenValidated && (
+
+            {!isValidAccessToken && (
               <p className="notes">
                 Please validate the access token before save *
               </p>

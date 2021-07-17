@@ -6,7 +6,7 @@ import { Dropbox, Error, files } from 'dropbox';
 //
 export const validateDropboxToken = async (accessToken: string) => {
   const dbx = new Dropbox({accessToken: accessToken})
-  const filesListFolderResponse = await dbx.filesListFolder({path: ''}).catch((errorResp: any) => {
+  const filesListFolderResponse: any = await dbx.filesListFolder({path: ''}).catch((errorResp: any) => {
     if (!!errorResp.error['error_summary']) {
       return {
         errorCode: 'invalidKey'
@@ -22,7 +22,7 @@ export const validateDropboxToken = async (accessToken: string) => {
     }
   })
 
-  const teamMemberResponse = await dbx.teamGetInfo().catch((errorResp: any) => {
+  const teamMemberResponse: any = await dbx.teamGetInfo().catch((errorResp: any) => {
     if (!!errorResp.error['error_summary']) {
       return {
         errorCode: 'invalidKey'
@@ -38,7 +38,7 @@ export const validateDropboxToken = async (accessToken: string) => {
     }
   })
 
-  let result = {
+  let result: any = {
     dbx: dbx
   }
 

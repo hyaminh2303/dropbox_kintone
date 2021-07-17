@@ -141,9 +141,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
   const configurationRecord = await getRootConfigurationRecord(
     dropbox_configuration_app_id
   );
-    console.log(configurationRecord)
-    console.log(oldConfig.folderName)
-    console.log(folderName)
+
   if (
     createOrSelectExistingFolder === "select" &&
     folderName !== oldConfig.folderName
@@ -183,7 +181,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
 
     const rootPath = `${rootFolder}/${folderName}`;
 
-    if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName) {
+    if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName && !!configurationRecord) {
       await updateRootRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,

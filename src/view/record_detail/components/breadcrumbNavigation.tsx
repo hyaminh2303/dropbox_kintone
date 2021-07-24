@@ -37,8 +37,6 @@ export default class BreadcrumbNavigation extends Component {
       currentPathDisplayItems.unshift(config.folderName);
     }
 
-    console.log(pathDisplayItems)
-
     return (
       <div className="dropbox-breadcrumb">
         <ul className="breadcrumb">

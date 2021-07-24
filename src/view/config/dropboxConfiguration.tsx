@@ -11,7 +11,7 @@ import { setStateAsync } from "../../utils/stateHelper";
 import Fields from "../../utils/Fields";
 import Select from "react-select";
 
-import { showNotificationError } from "../../utils/notifications";
+import { showNotificationError, showNotificationSuccess } from "../../utils/notifications";
 import {
   getRootConfigurationRecord,
   updateRootRecord
@@ -72,11 +72,21 @@ export default class DropboxConfiguration extends Component {
       accessToken,
       selectedField,
       isBusinessAccount,
+      selectedFolderId,
+      dropboxAppKey,
+      dropbox_configuration_app_id,
+      folderName
     } = this.state;
 
     this.setState({isBlockUI: true})
+
     try {
-      if (accessToken === "" || selectedField === "") {
+      if (
+        accessToken === "" ||
+        dropboxAppKey === "" ||
+        dropbox_configuration_app_id === "" ||
+        selectedField === "" ||
+        folderName == "") {
         showNotificationError("All fields are requied!");
       } else {
         // if not business account
@@ -95,6 +105,7 @@ export default class DropboxConfiguration extends Component {
             this.dbx
           )
         }
+        showNotificationSuccess("Configurations has been saved successfully!")
       }
       this.setState({isBlockUI: false})
     } catch (error) {
@@ -135,8 +146,8 @@ export default class DropboxConfiguration extends Component {
     const { accessToken } = this.state;
     this.setState({ isBlockUI: true });
 
-    const existingFoldersList = await getExistingFoldersList(
-      member,
+    const existingFoldersList = await businessAccHelper.getExistingFoldersList(
+      member.value,
       accessToken
     );
 

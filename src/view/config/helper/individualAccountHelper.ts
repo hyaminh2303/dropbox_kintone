@@ -44,11 +44,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     createOrSelectExistingFolder: createOrSelectExistingFolder,
     isBusinessAccount: isBusinessAccount,
     isValidAccessToken: isValidAccessToken,
+    selectedFolderId: selectedFolderId
   };
-
-  if (!!selectedFolderId) {
-    config["selectedFolderId"] = selectedFolderId;
-  }
 
   onSaveConfigurationSuccess(config);
 

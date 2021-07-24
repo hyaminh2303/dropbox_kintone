@@ -12,13 +12,19 @@ class PluginSettings extends Component {
     this.state = props.config;
   }
 
-  setPluginConfig(values: any) {
+  setPluginConfig(newConfigs: any) {
+    Object.keys(newConfigs).forEach((key) => {
+      if (!newConfigs[key] == null || newConfigs[key] == undefined) {
+        newConfigs[key] = "";
+      } else {
+        newConfigs[key] = `${newConfigs[key]}`;
+      }
+    })
+
     const { pluginId } = this.props;
     const currentConfig = kintone.plugin.app.getConfig(pluginId);
-
-    const newConfig = Object.assign(currentConfig, values);
-
-    kintone.plugin.app.setConfig(newConfig, () => {
+    newConfigs = Object.assign(currentConfig, newConfigs);
+    kintone.plugin.app.setConfig(newConfigs, () => {
       return false;
     });
   }
@@ -48,6 +54,15 @@ class PluginSettings extends Component {
 (async (PLUGIN_ID) => {
   const rootElement = document.getElementById("root");
   const config = kintone.plugin.app.getConfig(PLUGIN_ID);
+
+  Object.keys(config).forEach((key) => {
+    if (config[key] == "true") {
+      config[key] = true
+    } else if (config[key] == "false") {
+      config[key] = false
+    }
+  })
+
   ReactDOM.render(
     <PluginSettings pluginId={PLUGIN_ID} config={config} />,
     rootElement

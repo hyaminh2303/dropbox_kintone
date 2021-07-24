@@ -108,7 +108,7 @@ export const addChildFolderRecord = async (configurationAppId: string | number, 
 
 export const deleteAllConfigurationRecordsBy = async (configurationAppId: string, recordIds: Array<number>) => {
   const restClient = new KintoneRestAPIClient();
-  console.log(recordIds)
+
   await restClient.record.deleteAllRecords({
     app: configurationAppId,
     records: recordIds.map((id) => {

@@ -1,6 +1,6 @@
 import { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find } from 'lodash';
+import { find, uniqueId } from 'lodash';
 
 import { showNotificationError } from "../../../utils/notifications";
 import {
@@ -338,8 +338,11 @@ export const getExistingFoldersList = async (dbx) => {
     })
     .map((e) => {
       return {
+        uniqueId: uniqueId(),
         label: e.name,
-        value: e.id,
+        namespaceId: null,
+        folderId: e.id,
+        rootPath: e.path_lower,
       };
     });
 

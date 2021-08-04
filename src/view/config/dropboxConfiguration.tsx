@@ -5,11 +5,12 @@ import {
   RadioButton
 } from "@kintone/kintone-ui-component";
 import { Dropbox } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find, forEach } from "lodash";
+import { find, forEach, uniqueId } from "lodash";
+import Select from "react-select";
 
 import { setStateAsync } from "../../utils/stateHelper";
 import Fields from "../../utils/Fields";
-import Select from "react-select";
+import MultipleLevelSelect from "../../components/multipleLevelSelect"
 
 import { showNotificationError, showNotificationSuccess } from "../../utils/notifications";
 import {
@@ -33,8 +34,10 @@ export default class DropboxConfiguration extends Component {
     this.handleLogicsForValidateAccessToken = this.handleLogicsForValidateAccessToken.bind(this);
     this.handleChangeMember = this.handleChangeMember.bind(this);
     this.handleLogicsAfterMounted = this.handleLogicsAfterMounted.bind(this);
+    this.getChildrenDropboxFolders = this.getChildrenDropboxFolders.bind(this);
 
     this.state = {
+      selectedFolders:[],
       accessToken: "",
       dropboxAppKey: "",
       folderName: "",
@@ -267,6 +270,50 @@ export default class DropboxConfiguration extends Component {
     );
   }
 
+  async getChildrenDropboxFolders(selectedFolder) {
+    let { selectedFolders } = this.state;
+    selectedFolders.push(selectedFolder)
+    await setStateAsync({
+      selectedFolders: selectedFolders
+    }, this);
+
+    if (this.state.isBusinessAccount) {
+      this.dbx.selectUser = this.state.memberId;
+      this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedFolder.namespaceId}"}`;
+    }
+    const filesListFolderResponse = await this.dbx.filesListFolder({
+      path: selectedFolder['rootPath']
+    })
+
+    const childrenFolders = filesListFolderResponse.result.entries.filter((e) => {
+      return e[".tag"] == "folder";
+    }).map((e) => {
+      return {
+        uniqueId: uniqueId(),
+        parentUniqueId: selectedFolder.uniqueId,
+        label: e.name,
+        namespaceId: null,
+        folderId: e.id,
+        rootPath: e.path_lower,
+      };
+    });
+    let existingFoldersList = []
+    this.state.selectedFolders.forEach((selectedFolder, index) => {
+      existingFoldersList.push({
+        uniqueId: uniqueId(),
+        parentUniqueId: selectedFolder.uniqueId,
+        label: e.name,
+        namespaceId: null,
+        folderId: e.id,
+        rootPath: e.path_lower,
+      })
+    });
+    console.log(childrenFolders)
+    // const childrenFolders = filesListFolderResponse.
+    // console.log(childrenFolders)
+
+  }
+
   UNSAFE_componentWillMount() {
     let formFields: any = [];
 
@@ -318,7 +365,7 @@ export default class DropboxConfiguration extends Component {
       dropboxAppKey,
       isBlockUI,
     } = this.state;
-
+    console.log(existingFoldersList)
     return (
       <div>
         <Loading isVisible={isBlockUI} />
@@ -424,6 +471,31 @@ export default class DropboxConfiguration extends Component {
                         selectedFolderId: value.value,
                       });
                     }}
+                  />
+                  <MultipleLevelSelect
+                    getChildrenDropboxFolders={this.getChildrenDropboxFolders}
+                    items={existingFoldersList}
+                    // items={[
+                    //   {
+                    //     value: "asdasd",
+                    //     space_id: "1",
+                    //     label: "aaaaaa1",
+                    //     children: [
+                    //       {
+                    //         value: "asdasd",
+                    //         label: "aaaaaa2",
+                    //         space_id: "1",
+                    //         children: [
+                    //           {
+                    //             space_id: "1",
+                    //             value: "asdasd",
+                    //             label: "aaaaaa3"
+                    //           }
+                    //         ]
+                    //       }
+                    //     ]
+                    //   }
+                    // ]}
                   />
                   <div>
                     <i>

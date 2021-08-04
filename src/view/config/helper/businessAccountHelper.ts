@@ -1,6 +1,6 @@
 import { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find } from 'lodash';
+import { find, uniqueId } from 'lodash';
 
 import { showNotificationError } from "../../../utils/notifications";
 import {
@@ -59,7 +59,13 @@ export const getExistingFoldersList = async (memberId: string, accessToken: stri
     const folders = foldersResponse.result.entries.filter((entry) => {
       return entry['.tag'] == 'folder' && !!entry.shared_folder_id;
     }).map((entry: any) => {
-      return { label: entry.name, value: entry.shared_folder_id };
+      return {
+        uniqueId: uniqueId(),
+        label: entry.name,
+        namespaceId: entry.shared_folder_id,
+        folderId: null,
+        rootPath: ""
+      };
     });
 
     return folders;

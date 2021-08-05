@@ -62,7 +62,7 @@ export const updateRootRecord = async (configurationAppId: string | number, id: 
   });
 }
 
-export const addRootRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string) => {
+export const addRootRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string, selectedNamespaceId: string) => {
   const restClient = new KintoneRestAPIClient();
 
   await restClient.record.addRecord({
@@ -76,12 +76,15 @@ export const addRootRecord = async (configurationAppId: string | number, folderN
       },
       dropbox_folder_id: {
         value: dropboxFolderId
+      },
+      namespace_id: {
+        value: selectedNamespaceId
       }
     }
   })
 }
 
-export const addChildFolderRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string, targetAppRecordId: string | number, dropboxFolderName: string) => {
+export const addChildFolderRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string, targetAppRecordId: string | number, dropboxFolderName: string, selectedNamespaceId: string) => {
   const restClient = new KintoneRestAPIClient();
 
   await restClient.record.addRecord({
@@ -101,6 +104,9 @@ export const addChildFolderRecord = async (configurationAppId: string | number, 
       },
       dropbox_folder_name: {
         value: dropboxFolderName
+      },
+      namespace_id: {
+        value: selectedNamespaceId
       }
     }
   })

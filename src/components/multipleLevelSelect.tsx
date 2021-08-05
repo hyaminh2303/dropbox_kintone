@@ -1,5 +1,7 @@
-import { Spinner } from "@kintone/kintone-ui-component";
 import React from "react";
+import { Spinner } from "@kintone/kintone-ui-component";
+import Dropdown from 'react-multilevel-dropdown';
+
 
 export default class MultipleLevelSelect extends React.Component {
   constructor(props) {
@@ -7,43 +9,44 @@ export default class MultipleLevelSelect extends React.Component {
     this.renderChildrenItems = this.renderChildrenItems.bind(this);
   }
 
-  renderChildrenItems(item) {
-    if (!!item.children) {
-      console.log(213213)
+  renderChildrenItems(item, index) {
+    console.log(item)
+    if (item.children.length > 0) {
       return(
-        <React.Fragment>
-          <div>
-            <div onClick={() => this.props.getChildrenDropboxFolders(item)}>{item.label}</div>
-            <div>set</div>
-          </div>
-          {
-            item.children.map(child => {
-              return this.renderChildrenItems(child)
-            })
-          }
-        </React.Fragment>
+        <Dropdown.Item position="right" key={index}>
+          { item.label }
+          <Dropdown.Submenu position="right">
+            {
+              item.children.map((child, index) => {
+                return this.renderChildrenItems(child, index)
+              })
+            }
+          </Dropdown.Submenu>
+        </Dropdown.Item>
       )
     } else {
       return(
-        <div>
-          <div onClick={() => this.props.getChildrenDropboxFolders(item)}>{item.label}</div>
-          <div>set</div>
-        </div>
+        <Dropdown.Item position="right" onClick={() => this.props.setDropboxFolder(item)} key={index}>
+          {item.label}
+        </Dropdown.Item>
       )
     }
   }
 
   render() {
-    const { items } = this.props;
-
+    const { items, folderName } = this.props;
+    console.log(items)
     return(
-      <div>
+      <Dropdown
+        title={folderName}
+        position="right"
+      >
         {
-          items.map(item => {
-            return this.renderChildrenItems(item)
+          items.map((item, index) => {
+            return this.renderChildrenItems(item, index)
           })
         }
-      </div>
+      </Dropdown>
     )
   }
 }

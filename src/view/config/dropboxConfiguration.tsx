@@ -34,7 +34,6 @@ export default class DropboxConfiguration extends Component {
     this.handleLogicsForValidateAccessToken = this.handleLogicsForValidateAccessToken.bind(this);
     this.handleChangeMember = this.handleChangeMember.bind(this);
     this.handleLogicsAfterMounted = this.handleLogicsAfterMounted.bind(this);
-    this.getChildrenDropboxFolders = this.getChildrenDropboxFolders.bind(this);
 
     this.state = {
       selectedFolders:[],
@@ -49,6 +48,7 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder: "",
       existingFoldersList: [],
       selectedFolderId: "",
+      selectedNamespaceId: "",
       isBlockUI: false,
       isBusinessAccount: false,
       createOrSelectExistingFolderOptions: [
@@ -270,50 +270,6 @@ export default class DropboxConfiguration extends Component {
     );
   }
 
-  async getChildrenDropboxFolders(selectedFolder) {
-    let { selectedFolders } = this.state;
-    selectedFolders.push(selectedFolder)
-    await setStateAsync({
-      selectedFolders: selectedFolders
-    }, this);
-
-    if (this.state.isBusinessAccount) {
-      this.dbx.selectUser = this.state.memberId;
-      this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedFolder.namespaceId}"}`;
-    }
-    const filesListFolderResponse = await this.dbx.filesListFolder({
-      path: selectedFolder['rootPath']
-    })
-
-    const childrenFolders = filesListFolderResponse.result.entries.filter((e) => {
-      return e[".tag"] == "folder";
-    }).map((e) => {
-      return {
-        uniqueId: uniqueId(),
-        parentUniqueId: selectedFolder.uniqueId,
-        label: e.name,
-        namespaceId: null,
-        folderId: e.id,
-        rootPath: e.path_lower,
-      };
-    });
-    let existingFoldersList = []
-    this.state.selectedFolders.forEach((selectedFolder, index) => {
-      existingFoldersList.push({
-        uniqueId: uniqueId(),
-        parentUniqueId: selectedFolder.uniqueId,
-        label: e.name,
-        namespaceId: null,
-        folderId: e.id,
-        rootPath: e.path_lower,
-      })
-    });
-    console.log(childrenFolders)
-    // const childrenFolders = filesListFolderResponse.
-    // console.log(childrenFolders)
-
-  }
-
   UNSAFE_componentWillMount() {
     let formFields: any = [];
 
@@ -332,6 +288,7 @@ export default class DropboxConfiguration extends Component {
       dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
       folderName: this.props.folderName || "",
       selectedFolderId: this.props.selectedFolderId || "",
+      selectedNamespaceId: this.props.selectedNamespaceId || "",
       createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
       dropboxAppKey: this.props.dropboxAppKey || "",
       memberId: this.props.memberId || "",
@@ -362,10 +319,12 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder,
       existingFoldersList,
       selectedFolderId,
+      selectedNamespaceId,
       dropboxAppKey,
       isBlockUI,
     } = this.state;
-    console.log(existingFoldersList)
+    console.log(selectedNamespaceId)
+    console.log(selectedNamespaceId)
     return (
       <div>
         <Loading isVisible={isBlockUI} />
@@ -473,7 +432,15 @@ export default class DropboxConfiguration extends Component {
                     }}
                   />
                   <MultipleLevelSelect
-                    getChildrenDropboxFolders={this.getChildrenDropboxFolders}
+                    setDropboxFolder={(item) => {
+                      console.log(item)
+                      this.setState({
+                        selectedNamespaceId: item.namespaceId,
+                        folderName: item.label,
+                        selectedFolderId: item.folderId,
+                      })
+                    }}
+                    folderName={folderName}
                     items={existingFoldersList}
                     // items={[
                     //   {

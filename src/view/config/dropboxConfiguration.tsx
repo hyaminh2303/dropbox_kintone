@@ -15,7 +15,7 @@ import MultipleLevelSelect from "../../components/multipleLevelSelect"
 import { showNotificationError, showNotificationSuccess } from "../../utils/notifications";
 import {
   getRootConfigurationRecord,
-  updateRootRecord
+  updateConfigurationRecord
 } from "../../utils/recordsHelper";
 import "./style.sass";
 import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
@@ -263,7 +263,7 @@ export default class DropboxConfiguration extends Component {
 
     this.setState(newState);
 
-    await updateRootRecord(
+    await updateConfigurationRecord(
       dropbox_configuration_app_id,
       configurationRecord["$id"].value,
       {

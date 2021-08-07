@@ -14,7 +14,7 @@ import FolderFormDialog from './components/folderFormDialog'
 import {
   getRootConfigurationRecord,
   getConfigurationRecord,
-  updateRootRecord,
+  updateConfigurationRecord,
   addChildFolderRecord
 } from '../../utils/recordsHelper'
 import {
@@ -104,11 +104,6 @@ export default class RecordDetail extends Component {
 
     this.dbx = new Dropbox({ accessToken: accessToken })
 
-    if (this.state.isBusinessAccount) {
-      this.dbx.selectUser = `${config.memberId}`
-      this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${config.selectedNamespaceId}"}`
-    }
-
     const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();
 
     if (!!response['errorCode']) {
@@ -140,13 +135,28 @@ export default class RecordDetail extends Component {
       }
     }
 
-    const metadataResponse = await this.dbx.filesGetMetadata({
-      path: rootConfigurationRecord.dropbox_folder_id.value
-    }).catch((error: any) => {
-      return {
-        errorCode: 'notFoundFolderOnDropbox'
+    if (this.state.isBusinessAccount) {
+      this.dbx.selectUser = `${config.memberId}`
+      this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${rootConfigurationRecord.namespace_id.value}"}`
+    }
+
+    let metadataResponse;
+    if (!rootConfigurationRecord.dropbox_folder_id.value) {
+      // this means user select the folder inside team folder, the top folder of business account.
+      metadataResponse = {
+        result: {
+          path_lower: ""
+        }
       }
-    })
+    } else {
+      metadataResponse = await this.dbx.filesGetMetadata({
+        path: rootConfigurationRecord.dropbox_folder_id.value
+      }).catch((error: any) => {
+        return {
+          errorCode: 'notFoundFolderOnDropbox'
+        }
+      })
+    }
 
     if (metadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
       showNotificationError("Not found root dropbox folder, please create a new one and update your plugin settings");
@@ -166,6 +176,8 @@ export default class RecordDetail extends Component {
       }
     }
 
+    console.log(configurationRecord)
+
     if (!!configurationRecord) {
       // Get dropbox folder by ID, so even individual or business account are same
       const recordFolderMetadataResponse = await this.dbx.filesGetMetadata({
@@ -175,21 +187,29 @@ export default class RecordDetail extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
-
+      console.log(recordFolderMetadataResponse)
+      console.log(metadataResponse)
       if (recordFolderMetadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // this means folder already deleted on dropbox, need to create it again
         let folderName = configurationRecord['dropbox_folder_name'].value;
-        let rootPath = `${metadataResponse.result.path_display}/${folderName}`;
-
+        let rootPath = `${metadataResponse.result.path_lower}/${folderName}`;
+        console.log(rootPath)
         const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
           path: rootPath, autorename: true
         })
 
         console.log("createFolderResponse", createFolderResponse)
 
-        await updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
-          dropbox_folder_id: { value: createFolderResponse.result.id }
-        })
+        await updateConfigurationRecord(
+          dropbox_configuration_app_id,
+          configurationRecord['$id'].value, {
+            dropbox_folder_name: { value: createFolderResponse.result.metadata.name },
+            dropbox_folder_id: { value: createFolderResponse.result.metadata.id },
+            root_folder_name: { value: rootConfigurationRecord['root_folder_name'].value },
+            namespace_id: { value: rootConfigurationRecord['namespace_id'].value },
+            namespace_name: { value: rootConfigurationRecord['namespace_name'].value }
+          }
+        )
 
         return {
           path: createFolderResponse.result.metadata.path_lower
@@ -197,11 +217,18 @@ export default class RecordDetail extends Component {
 
       } else if (recordFolderMetadataResponse.result.name != configurationRecord['dropbox_folder_name'].value) {
         // This mean the name has been changed on dropbox, then need to update in kintone
-        updateRootRecord(dropbox_configuration_app_id, configurationRecord['$id'].value, {
-          dropbox_folder_name: { value: recordFolderMetadataResponse.result.name }
-        })
+        updateConfigurationRecord(
+          dropbox_configuration_app_id,
+          configurationRecord['$id'].value, {
+            dropbox_folder_name: { value: recordFolderMetadataResponse.result.name },
+            dropbox_folder_id: { value: recordFolderMetadataResponse.result.id },
+            root_folder_name: { value: rootConfigurationRecord['root_folder_name'].value },
+            namespace_id: { value: rootConfigurationRecord['namespace_id'].value },
+            namespace_name: { value: rootConfigurationRecord['namespace_name'].value }
+          }
+        )
       }
-
+      console.log(recordFolderMetadataResponse)
       // if has no change on folder name on both kinton and dropbox => return path by dropbox metadata
       // if has any change on folder name, then the code above already updated folder name in configuration app. so we can return path by dropbox metadata as well
       return {
@@ -211,7 +238,7 @@ export default class RecordDetail extends Component {
 
       const folderName = `${record[config.selectedField].value}[${record['$id'].value}]`
 
-      let rootPath = `${metadataResponse.result.path_display}/${folderName}`
+      let rootPath = `${metadataResponse.result.path_lower}/${folderName}`
 
       const createFolderResponse = await this.requestDropbox('filesCreateFolderV2', {
         path: rootPath, autorename: true
@@ -219,11 +246,14 @@ export default class RecordDetail extends Component {
 
       await addChildFolderRecord(
         dropbox_configuration_app_id,
-        rootConfigurationRecord['root_folder_name'].value,
-        createFolderResponse.result.metadata.id,
-        record['$id'].value,
-        createFolderResponse.result.metadata.name,
-        rootConfigurationRecord['namespace_id'].value
+        {
+          root_folder_name: { value: rootConfigurationRecord['root_folder_name'].value },
+          dropbox_folder_id: { value: createFolderResponse.result.metadata.id },
+          target_app_record_id: { value: parseInt(record['$id'].value) },
+          dropbox_folder_name: { value: createFolderResponse.result.metadata.name },
+          namespace_id: { value: rootConfigurationRecord['namespace_id'].value },
+          namespace_name: { value: rootConfigurationRecord['namespace_name'].value }
+        }
       )
 
       console.log("createFolderResponse", createFolderResponse)

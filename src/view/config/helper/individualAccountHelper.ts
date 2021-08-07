@@ -10,7 +10,7 @@ import {
   getConfigurationRecord,
   getConfigurationRecordsByTargetAppRecordId,
   getRootConfigurationRecord,
-  updateRootRecord
+  updateConfigurationRecord
 } from "../../../utils/recordsHelper";
 
 export const saveConfigurations = async (params: any, onSaveConfigurationSuccess: Function, oldConfig: any, dbx: any) => {
@@ -20,6 +20,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     selectedField,
     dropbox_configuration_app_id,
     selectedFolderId,
+    selectedNamespaceId,
+    selectedNamespaceName,
     createOrSelectExistingFolder,
     dropboxAppKey,
     isBusinessAccount,
@@ -67,10 +69,14 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
           // Add configuration record fold child folder already presented on dropbox
           await addChildFolderRecord(
             dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            entry.name,
-            entry.name
+            {
+              root_folder_name: { value: folderName },
+              dropbox_folder_id: { value: entry.id },
+              target_app_record_id: { value: parseInt(cRecord.id) },
+              dropbox_folder_name: { value: entry.name },
+              namespace_id: { value: selectedNamespaceId },
+              namespace_name: { value: selectedNamespaceName }
+            }
           );
         }
       }
@@ -115,10 +121,14 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
         if (!!folderRecord) {
           await addChildFolderRecord(
             dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            folderRecord.id,
-            entry.name
+            {
+              root_folder_name: { value: folderName },
+              dropbox_folder_id: { value: entry.id },
+              target_app_record_id: { value: parseInt(folderRecord.id) },
+              dropbox_folder_name: { value: entry.name },
+              namespace_id: { value: selectedNamespaceId },
+              namespace_name: { value: selectedNamespaceName }
+            }
           );
         }
       })
@@ -179,7 +189,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
     const rootPath = `${rootFolder}/${folderName}`;
 
     if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName && !!configurationRecord) {
-      await updateRootRecord(
+      await updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {
@@ -221,7 +231,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         path: `${rootFolder}/${folderName}`,
       });
 
-      await updateRootRecord(
+      await updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {
@@ -255,7 +265,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         };
       }
 
-      updateRootRecord(
+      updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {

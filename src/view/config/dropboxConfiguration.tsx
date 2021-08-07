@@ -48,7 +48,9 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder: "",
       existingFoldersList: [],
       selectedFolderId: "",
+      selectedFolderPathLower: "",
       selectedNamespaceId: "",
+      selectedNamespaceName: "",
       isBlockUI: false,
       isBusinessAccount: false,
       createOrSelectExistingFolderOptions: [
@@ -288,7 +290,9 @@ export default class DropboxConfiguration extends Component {
       dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
       folderName: this.props.folderName || "",
       selectedFolderId: this.props.selectedFolderId || "",
+      selectedFolderPathLower: this.props.selectedFolderPathLower || "",
       selectedNamespaceId: this.props.selectedNamespaceId || "",
+      selectedNamespaceName: this.props.selectedNamespaceName || "",
       createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
       dropboxAppKey: this.props.dropboxAppKey || "",
       memberId: this.props.memberId || "",
@@ -319,12 +323,13 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder,
       existingFoldersList,
       selectedFolderId,
+      selectedNamespaceName,
+      selectedFolderPathLower,
       selectedNamespaceId,
       dropboxAppKey,
       isBlockUI,
     } = this.state;
-    console.log(selectedNamespaceId)
-    console.log(selectedNamespaceId)
+
     return (
       <div>
         <Loading isVisible={isBlockUI} />
@@ -418,52 +423,26 @@ export default class DropboxConfiguration extends Component {
                 </div>
               ) : (
                 <div className="input-config">
-                  <Select
-                    options={existingFoldersList}
-                    value={find(existingFoldersList, {
-                      value: selectedFolderId,
-                    })}
-                    className="react-select-dropdown"
-                    onChange={(value) => {
-                      this.setState({
-                        folderName: value.label,
-                        selectedFolderId: value.value,
-                      });
-                    }}
-                  />
                   <MultipleLevelSelect
                     setDropboxFolder={(item) => {
-                      console.log(item)
                       this.setState({
                         selectedNamespaceId: item.namespaceId,
+                        selectedNamespaceName: item.namespaceName,
                         folderName: item.label,
+                        selectedFolderPathLower: item.pathLower,
                         selectedFolderId: item.folderId,
                       })
                     }}
+                    selectedFolderPathLower={selectedFolderPathLower}
+                    selectedNamespaceName={selectedNamespaceName}
+                    memberId={memberId}
+                    isBusinessAccount={isBusinessAccount}
+                    dbx={this.dbx}
                     folderName={folderName}
-                    items={existingFoldersList}
-                    // items={[
-                    //   {
-                    //     value: "asdasd",
-                    //     space_id: "1",
-                    //     label: "aaaaaa1",
-                    //     children: [
-                    //       {
-                    //         value: "asdasd",
-                    //         label: "aaaaaa2",
-                    //         space_id: "1",
-                    //         children: [
-                    //           {
-                    //             space_id: "1",
-                    //             value: "asdasd",
-                    //             label: "aaaaaa3"
-                    //           }
-                    //         ]
-                    //       }
-                    //     ]
-                    //   }
-                    // ]}
+                    selectedFolderId={selectedFolderId}
+                    parentFolders={existingFoldersList}
                   />
+
                   <div>
                     <i>
                       <small>

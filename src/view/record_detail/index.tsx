@@ -167,8 +167,6 @@ export default class RecordDetail extends Component {
     }
 
     if (!!configurationRecord) {
-      console.log(configurationRecord)
-      console.log(configurationRecord.dropbox_folder_id.value)
       // Get dropbox folder by ID, so even individual or business account are same
       const recordFolderMetadataResponse = await this.dbx.filesGetMetadata({
         path: configurationRecord.dropbox_folder_id.value

@@ -45,6 +45,79 @@ const sleep = (ms) =>{
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// export const getExistingFoldersList = async (memberId: string, accessToken: string) => {
+//   let dbx = new Dropbox({accessToken: accessToken});
+
+//   try {
+//     const teamNamespacesListResult = await dbx.teamNamespacesList({limit: 1000})
+//     const namespace = find(teamNamespacesListResult.result.namespaces, (namespace) => {
+//       return namespace.namespace_type['.tag'] == "team_folder";
+//     }) || {namespace_id: ''}
+
+//     dbx.selectUser = memberId;
+//     dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${namespace['namespace_id']}"}`;
+
+//     const foldersResponse = await dbx.filesListFolder({path: ''});
+
+//     const folders = foldersResponse.result.entries.filter((entry) => {
+//       return entry['.tag'] == 'folder' && !!entry.shared_folder_id;
+//     }).map((entry: any) => {
+//       return {
+//         label: entry.name,
+//         namespaceId: entry.shared_folder_id,
+//         folderId: null,
+//         rootPath: ""
+//       };
+//     });
+
+//     let getAllChildrenFolderDepth = async (dbx, folder, path) => {
+//       const childrenFoldersResponse = await dbx.filesListFolder({path: path});
+
+//       const childrenFolders = childrenFoldersResponse.result.entries.filter((entry) => {
+//         return entry['.tag'] == 'folder'
+//       }).map((entry: any) => {
+//         console.log(entry)
+//         return {
+//           label: entry.name,
+//           namespaceId: entry.parent_shared_folder_id,
+//           folderId: entry.id,
+//           rootPath: entry.path_lower,
+//         };
+//       });
+
+//       folder['children'] = childrenFolders;
+
+//       if (childrenFolders.length > 0) {
+//         await Promise.all(
+//           map(childrenFolders, async (folder: any, index: number) => {
+//             await sleep(200*index)
+//             await getAllChildrenFolderDepth(dbx, folder, folder.rootPath);
+//           })
+//         )
+//       }
+//     }
+
+//     let allFoldersPromises = map(folders, async (folder: any, index: number) => {
+//       let dbx = new Dropbox({
+//         accessToken: accessToken, selectUser: memberId,
+//         pathRoot: `{".tag": "namespace_id", "namespace_id": "${folder['namespaceId']}"}`
+//       });
+
+//       // value of "folder" will be changed in the function getAllChildrenFolderDeepth
+//       await sleep(200*index)
+//       await getAllChildrenFolderDepth(dbx, folder, '');
+//     })
+
+//     await Promise.all(allFoldersPromises)
+
+//     return folders;
+//   } catch (error) {
+//     return [];
+//   }
+
+// }
+
+
 export const getExistingFoldersList = async (memberId: string, accessToken: string) => {
   let dbx = new Dropbox({accessToken: accessToken});
 
@@ -64,51 +137,14 @@ export const getExistingFoldersList = async (memberId: string, accessToken: stri
     }).map((entry: any) => {
       return {
         label: entry.name,
+        namespaceName: entry.name,
         namespaceId: entry.shared_folder_id,
         folderId: null,
-        rootPath: ""
+        children: [],
+        pathLower: "",
+        uniqueId: uniqueId()
       };
     });
-
-    let getAllChildrenFolderDepth = async (dbx, folder, path) => {
-      const childrenFoldersResponse = await dbx.filesListFolder({path: path});
-
-      const childrenFolders = childrenFoldersResponse.result.entries.filter((entry) => {
-        return entry['.tag'] == 'folder'
-      }).map((entry: any) => {
-        console.log(entry)
-        return {
-          label: entry.name,
-          namespaceId: entry.parent_shared_folder_id,
-          folderId: entry.id,
-          rootPath: entry.path_lower,
-        };
-      });
-
-      folder['children'] = childrenFolders;
-
-      if (childrenFolders.length > 0) {
-        await Promise.all(
-          map(childrenFolders, async (folder: any, index: number) => {
-            await sleep(200*index)
-            await getAllChildrenFolderDepth(dbx, folder, folder.rootPath);
-          })
-        )
-      }
-    }
-
-    let allFoldersPromises = map(folders, async (folder: any, index: number) => {
-      let dbx = new Dropbox({
-        accessToken: accessToken, selectUser: memberId,
-        pathRoot: `{".tag": "namespace_id", "namespace_id": "${folder['namespaceId']}"}`
-      });
-
-      // value of "folder" will be changed in the function getAllChildrenFolderDeepth
-      await sleep(200*index)
-      await getAllChildrenFolderDepth(dbx, folder, '');
-    })
-
-    await Promise.all(allFoldersPromises)
 
     return folders;
   } catch (error) {
@@ -126,6 +162,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     memberId,
     selectedFolderId,
     selectedNamespaceId,
+    selectedNamespaceName,
+    selectedFolderPathLower,
     folderName,
     dropboxAppKey,
     createOrSelectExistingFolder,
@@ -156,6 +194,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     isValidAccessToken: isValidAccessToken,
     selectedFolderId: selectedFolderId,
     selectedNamespaceId: selectedNamespaceId,
+    selectedNamespaceName: selectedNamespaceName,
+    selectedFolderPathLower: selectedFolderPathLower,
     memberId: memberId
   };
 
@@ -245,7 +285,6 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
     selectedFolderId,
     selectedNamespaceId,
   } = params;
-  console.log(params)
 
   const configurationRecord = await getRootConfigurationRecord(
     dropbox_configuration_app_id
@@ -286,8 +325,6 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
   const rootPath = "";
 
   if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName && !!configurationRecord) {
-    console.log(selectedNamespaceId)
-    console.log(selectedFolderId)
     await updateRootRecord(
       dropbox_configuration_app_id,
       configurationRecord["$id"].value,

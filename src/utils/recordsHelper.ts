@@ -90,34 +90,6 @@ export const addChildFolderRecord = async (configurationAppId: string | number, 
   })
 }
 
-// export const addChildFolderRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string, targetAppRecordId: string | number, dropboxFolderName: string, selectedNamespaceId: string) => {
-//   const restClient = new KintoneRestAPIClient();
-
-//   await restClient.record.addRecord({
-//     app: configurationAppId,
-//     record: {
-//       target_app_id: {
-//         value: kintone.app.getId()
-//       },
-//       root_folder_name: {
-//         value: folderName
-//       },
-//       dropbox_folder_id: {
-//         value: dropboxFolderId
-//       },
-//       target_app_record_id: {
-//         value: parseInt(targetAppRecordId)
-//       },
-//       dropbox_folder_name: {
-//         value: dropboxFolderName
-//       },
-//       namespace_id: {
-//         value: selectedNamespaceId
-//       }
-//     }
-//   })
-// }
-
 export const deleteAllConfigurationRecordsBy = async (configurationAppId: string, recordIds: Array<number>) => {
   const restClient = new KintoneRestAPIClient();
 

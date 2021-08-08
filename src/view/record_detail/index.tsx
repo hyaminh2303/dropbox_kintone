@@ -48,6 +48,7 @@ export default class RecordDetail extends Component {
     this.state = {
       currentPathLower: rootPath,
       currentPathDisplay: rootPath,
+      namespaceName: "",
       dropboxEntries: [],
       isDialogPreviewVisible: false,
       isDialogUploadVisible: false,
@@ -104,6 +105,7 @@ export default class RecordDetail extends Component {
 
     this.dbx = new Dropbox({ accessToken: accessToken })
 
+    // Add namespace and member to this.dbx in method findOrCreateDropboxConfigurationRecordAndGetRootPath
     const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();
 
     if (!!response['errorCode']) {
@@ -112,7 +114,11 @@ export default class RecordDetail extends Component {
 
     const rootPath = response['path']
 
-    this.setState({ currentPathLower: rootPath, currentPathDisplay: rootPath }, () => {
+    this.setState({
+      namespaceName: response['namespaceName'],
+      currentPathLower: rootPath,
+      currentPathDisplay: rootPath
+    }, () => {
       this.getDropboxEntries(rootPath)
     })
   }
@@ -165,8 +171,6 @@ export default class RecordDetail extends Component {
       }
     }
 
-
-
     const configurationRecord = await getConfigurationRecord(dropbox_configuration_app_id, record['$id'].value)
 
     if (!!configurationRecord && configurationRecord['errorCode'] == 'invalidConfigurationAppId') {
@@ -212,6 +216,7 @@ export default class RecordDetail extends Component {
         )
 
         return {
+          namespaceName: rootConfigurationRecord['namespace_name'].value,
           path: createFolderResponse.result.metadata.path_lower
         }
 
@@ -228,10 +233,11 @@ export default class RecordDetail extends Component {
           }
         )
       }
-      console.log(recordFolderMetadataResponse)
+
       // if has no change on folder name on both kinton and dropbox => return path by dropbox metadata
       // if has any change on folder name, then the code above already updated folder name in configuration app. so we can return path by dropbox metadata as well
       return {
+        namespaceName: rootConfigurationRecord['namespace_name'].value,
         path: recordFolderMetadataResponse.result.path_lower
       }
     } else {
@@ -259,6 +265,7 @@ export default class RecordDetail extends Component {
       console.log("createFolderResponse", createFolderResponse)
 
       return {
+        namespaceName: rootConfigurationRecord['namespace_name'].value,
         path: createFolderResponse.result.metadata.path_lower
       }
     }

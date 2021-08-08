@@ -31,17 +31,13 @@ export default class BreadcrumbNavigation extends Component {
 
     let pathLowerItems = [];
     let pathDisplayItems = [];
-
-    if (isBusinessAccount) {
-      currentPathLowerItems.unshift(config.folderName);
-      currentPathDisplayItems.unshift(config.folderName);
-    }
-
+    console.log(currentPathLowerItems)
     return (
       <div className="dropbox-breadcrumb">
         <ul className="breadcrumb">
           {currentPathLowerItems.map((item, index) => {
             let name = currentPathDisplayItems[index];
+            console.log(name)
             if (index != 0 || !isBusinessAccount) {
               pathLowerItems.push(item);
               pathDisplayItems.push(name);

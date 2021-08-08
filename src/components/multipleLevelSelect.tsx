@@ -139,9 +139,8 @@ export default class MultipleLevelSelect extends React.Component {
   }
 
   render() {
-    const { folderName, selectedFolderId } = this.props;
     const { folders } = this.state;
-    console.log(this.props.selectedFolderPathLower)
+
     return(
       <React.Fragment>
         <Dropdown

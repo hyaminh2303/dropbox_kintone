@@ -5,7 +5,7 @@ import {
   RadioButton
 } from "@kintone/kintone-ui-component";
 import { Dropbox } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find, forEach, uniqueId } from "lodash";
+import { find, forEach, tail, reverse } from "lodash";
 import Select from "react-select";
 
 import { setStateAsync } from "../../utils/stateHelper";
@@ -324,11 +324,11 @@ export default class DropboxConfiguration extends Component {
       existingFoldersList,
       selectedFolderId,
       selectedNamespaceName,
-      selectedFolderPathLower,
-      selectedNamespaceId,
       dropboxAppKey,
       isBlockUI,
     } = this.state;
+
+    let { selectedFolderPathLower } = this.state;
 
     return (
       <div>
@@ -417,11 +417,27 @@ export default class DropboxConfiguration extends Component {
                 <div className="input-config">
                   <Text
                     value={folderName}
-                    onChange={(value) => this.setState({ folderName: value })}
+                    onChange={(value) => {
+                      // Note: On change the dropbox name in config, the selected path must be changed as well.
+                      let pathLowerItems = (selectedFolderPathLower || "").split("/")
+                      // input ["", "aaacc1", "test 3"]
+                      pathLowerItems = tail(pathLowerItems);
+                      pathLowerItems = reverse(pathLowerItems);
+                      pathLowerItems = tail(pathLowerItems);
+                      pathLowerItems = reverse(pathLowerItems);
+                      // output ["aaacc1"]
+                      pathLowerItems.push(value)
+                      selectedFolderPathLower = `/${pathLowerItems.join("/")}`
+
+                      this.setState({
+                        folderName: value,
+                        selectedFolderPathLower: selectedFolderPathLower
+                      })
+                    }}
                     className="kintoneplugin-input-text"
                   />
                 </div>
-              ) : (
+              ) : createOrSelectExistingFolder === "select" ? (
                 <div className="input-config">
                   <MultipleLevelSelect
                     setDropboxFolder={(item) => {
@@ -452,7 +468,7 @@ export default class DropboxConfiguration extends Component {
                     </i>
                   </div>
                 </div>
-              )}
+              ) : null }
             </div>
 
             <div className="kintoneplugin-row">

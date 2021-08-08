@@ -438,7 +438,7 @@ export default class DropboxConfiguration extends Component {
                   />
                 </div>
               ) : (createOrSelectExistingFolder === "select" || isBusinessAccount) ? (
-                <div className="full-width">
+                <div className="input-config full-width">
                   <MultipleLevelSelect
                     setDropboxFolder={(item) => {
                       this.setState({

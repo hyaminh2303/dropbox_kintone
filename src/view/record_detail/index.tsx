@@ -48,6 +48,7 @@ export default class RecordDetail extends Component {
     this.state = {
       currentPathLower: rootPath,
       currentPathDisplay: rootPath,
+      selectedFolderPathLower: "",
       namespaceName: "",
       dropboxEntries: [],
       isDialogPreviewVisible: false,
@@ -116,6 +117,7 @@ export default class RecordDetail extends Component {
 
     this.setState({
       namespaceName: response['namespaceName'],
+      selectedFolderPathLower: response['path'],
       currentPathLower: rootPath,
       currentPathDisplay: rootPath
     }, () => {
@@ -180,8 +182,6 @@ export default class RecordDetail extends Component {
       }
     }
 
-    console.log(configurationRecord)
-
     if (!!configurationRecord) {
       // Get dropbox folder by ID, so even individual or business account are same
       const recordFolderMetadataResponse = await this.dbx.filesGetMetadata({
@@ -191,8 +191,7 @@ export default class RecordDetail extends Component {
           errorCode: 'notFoundFolderOnDropbox'
         }
       })
-      console.log(recordFolderMetadataResponse)
-      console.log(metadataResponse)
+
       if (recordFolderMetadataResponse['errorCode'] == 'notFoundFolderOnDropbox') {
         // this means folder already deleted on dropbox, need to create it again
         let folderName = configurationRecord['dropbox_folder_name'].value;
@@ -409,7 +408,8 @@ export default class RecordDetail extends Component {
     const {
       dropboxEntries, currentPathDisplay, currentPathLower,
       isDialogPreviewVisible, isDialogUploadVisible, isDialogFolderFormVisible,
-      previewPath, isDialogRenameFolderFormVisible, isBusinessAccount
+      previewPath, isDialogRenameFolderFormVisible, isBusinessAccount,
+      selectedFolderPathLower, namespaceName
     } = this.state
 
     return(
@@ -419,9 +419,11 @@ export default class RecordDetail extends Component {
 
             <BreadcrumbNavigation
               config = {config}
+              namespaceName={namespaceName}
               isBusinessAccount={isBusinessAccount}
               currentPathDisplay={currentPathDisplay}
               currentPathLower={currentPathLower}
+              selectedFolderPathLower={selectedFolderPathLower}
               navigateByBreadcrumb={this.navigateByBreadcrumb}
             />
 

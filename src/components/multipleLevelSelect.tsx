@@ -11,12 +11,19 @@ export default class MultipleLevelSelect extends React.Component {
     this.renderChildrenItems = this.renderChildrenItems.bind(this);
     this.getChildFolders = this.getChildFolders.bind(this);
     this.getPathLower = this.getPathLower.bind(this);
+    this.setDropboxFolder = this.setDropboxFolder.bind(this);
 
     this.state = {
       folders: props.parentFolders,
-      isShowSpinner: false
+      isShowSpinner: false,
     }
-    this.rawFolders = props.parentFolders;
+
+    this.rawFolders = clone(props.parentFolders);
+  }
+
+  setDropboxFolder(item) {
+    this.props.setDropboxFolder(item);
+    this.dropdown.click();
   }
 
   renderChildrenItems(item, index) {
@@ -27,7 +34,7 @@ export default class MultipleLevelSelect extends React.Component {
             {item.label}
           </div>
 
-          <div className="btn-set-folder" onClick={() => this.props.setDropboxFolder(item)}>
+          <div className="btn-set-folder" onClick={() => this.setDropboxFolder(item)}>
             Set
           </div>
 
@@ -47,7 +54,7 @@ export default class MultipleLevelSelect extends React.Component {
             {item.label}
           </div>
 
-          <div className="btn-set-folder" onClick={() => this.props.setDropboxFolder(item)}>
+          <div className="btn-set-folder" onClick={() => this.setDropboxFolder(item)}>
             Set
           </div>
         </Dropdown.Item>
@@ -131,10 +138,12 @@ export default class MultipleLevelSelect extends React.Component {
   }
 
   UNSAFE_componentWillReceiveProps(nextProps) {
+
     this.setState({
       folders: nextProps.parentFolders,
       latestFoldersList: nextProps.parentFolders
     })
+
     this.rawFolders = clone(nextProps.parentFolders);
   }
 
@@ -146,7 +155,10 @@ export default class MultipleLevelSelect extends React.Component {
         <Dropdown
           title={this.getPathLower()}
           position="right"
+          wrapperClassName="dropdown-button-wrapper"
+          className="dropdown-button"
           menuClassName="items-wrapper"
+          ref={input => this.dropdown = input}
         >
           {
             folders.map((item, index) => {

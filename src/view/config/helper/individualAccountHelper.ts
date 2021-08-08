@@ -346,13 +346,13 @@ export const getExistingFoldersList = async (dbx) => {
     })
     .map((e) => {
       return {
-        uniqueId: uniqueId(),
         label: e.name,
-        namespaceId: null,
         namespaceName: null,
+        namespaceId: null,
         folderId: e.id,
         children: [],
-        rootPath: e.path_lower,
+        pathLower: e.path_lower,
+        uniqueId: uniqueId(),
       };
     });
 

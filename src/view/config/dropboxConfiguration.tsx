@@ -437,8 +437,8 @@ export default class DropboxConfiguration extends Component {
                     className="kintoneplugin-input-text"
                   />
                 </div>
-              ) : createOrSelectExistingFolder === "select" ? (
-                <div className="input-config">
+              ) : (createOrSelectExistingFolder === "select" || isBusinessAccount) ? (
+                <div className="full-width">
                   <MultipleLevelSelect
                     setDropboxFolder={(item) => {
                       this.setState({

@@ -1,4 +1,5 @@
 import React, { Component } from "react";
+import { concat, compact, replace, tail, take } from "lodash";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
 
 import "./style.sass";
@@ -6,66 +7,65 @@ import "./style.sass";
 export default class BreadcrumbNavigation extends Component {
   constructor(props) {
     super(props);
-    this.renderIndividualAccountBreadcrumb =
-      this.renderIndividualAccountBreadcrumb.bind(this);
+    this.buildBreadcrumnLinks = this.buildBreadcrumnLinks.bind(this);
   }
 
-  renderIndividualAccountBreadcrumb() {}
-
-  render() {
+  buildBreadcrumnLinks() {
     const {
-      currentPathDisplay,
       currentPathLower,
-      navigateByBreadcrumb,
-      config,
-      isBusinessAccount,
+      selectedFolderPathLower,
+      namespaceName
     } = this.props;
 
-    const currentPathLowerItems = currentPathLower
-      .split("/")
-      .filter((i) => !!i);
+    let breadcrumnLinksItems = compact(replace(currentPathLower, selectedFolderPathLower, "").split("/"));
 
-      const currentPathDisplayItems = currentPathDisplay
-      .split("/")
-      .filter((i) => !!i);
+    let breadcrumnLinksItemsProcessed = breadcrumnLinksItems.map((breadcrumnLinkItem, index) => {
+      let pathItems = take(breadcrumnLinksItems, index+1)
+      return {
+        name: breadcrumnLinkItem,
+        path: concat(selectedFolderPathLower, pathItems).join("/")
+      }
+    })
 
-    let pathLowerItems = [];
-    let pathDisplayItems = [];
+    return concat(
+      [{ name: `${namespaceName}/${selectedFolderPathLower}`, path: selectedFolderPathLower}],
+      breadcrumnLinksItemsProcessed
+    )
+  }
 
-    if (isBusinessAccount) {
-      currentPathLowerItems.unshift(config.folderName);
-      currentPathDisplayItems.unshift(config.folderName);
-    }
+  render() {
+    const { navigateByBreadcrumb } = this.props;
+
+    let breadcrumnLinks = this.buildBreadcrumnLinks();
 
     return (
       <div className="dropbox-breadcrumb">
         <ul className="breadcrumb">
-          {currentPathLowerItems.map((item, index) => {
-            let name = currentPathDisplayItems[index];
-            if (index != 0 || !isBusinessAccount) {
-              pathLowerItems.push(item);
-              pathDisplayItems.push(name);
-            }
+          {
+            breadcrumnLinks.map((item, index) => {
+              let rootItemsName = compact(item['name'].split("/"));
 
-            let pathLower = "/" + pathLowerItems.join("/");
-            let pathDisplay = "/" + pathDisplayItems.join("/");
-
-            return (
-              <li key={index}>
-                {index == 0 ? (
-                  name
-                ) : (
-                  <a
-                    onClick={() => {
-                      navigateByBreadcrumb(pathDisplay, pathLower);
-                    }}
-                  >
-                    {name}
-                  </a>
-                )}
-              </li>
-            );
-          })}
+              if (index == 0) {
+                return rootItemsName.map((rootItemName, rootItemIndex) => {
+                  return (
+                    <li key={`${index}-${rootItemIndex}`}>
+                      <a onClick={() => navigateByBreadcrumb(item['path'], item['path'])}>
+                        {rootItemName}
+                      </a>
+                    </li>
+                  );
+                })
+              } else {
+                return (
+                  <li key={index}>
+                    <a onClick={() => navigateByBreadcrumb(item['path'], item['path'])}>
+                      {item.name}
+                    </a>
+                  </li>
+                );
+              }
+            })
+          }
         </ul>
       </div>
     );

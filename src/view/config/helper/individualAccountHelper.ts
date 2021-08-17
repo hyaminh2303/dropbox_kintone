@@ -1,6 +1,6 @@
 import { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find } from 'lodash';
+import { find, uniqueId, reverse, tail } from 'lodash';
 
 import { showNotificationError } from "../../../utils/notifications";
 import {
@@ -10,7 +10,7 @@ import {
   getConfigurationRecord,
   getConfigurationRecordsByTargetAppRecordId,
   getRootConfigurationRecord,
-  updateRootRecord
+  updateConfigurationRecord
 } from "../../../utils/recordsHelper";
 
 export const saveConfigurations = async (params: any, onSaveConfigurationSuccess: Function, oldConfig: any, dbx: any) => {
@@ -20,6 +20,9 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     selectedField,
     dropbox_configuration_app_id,
     selectedFolderId,
+    selectedNamespaceId,
+    selectedNamespaceName,
+    // selectedFolderPathLower,
     createOrSelectExistingFolder,
     dropboxAppKey,
     isBusinessAccount,
@@ -33,6 +36,8 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     return;
   }
 
+  const selectedFolderPathLower = createFolderResponse['path'];
+
   const restClient = new KintoneRestAPIClient();
 
   const config = {
@@ -40,6 +45,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     dropboxAppKey: dropboxAppKey,
     selectedField: selectedField,
     folderName: folderName,
+    selectedFolderPathLower: selectedFolderPathLower,
     dropbox_configuration_app_id: dropbox_configuration_app_id,
     createOrSelectExistingFolder: createOrSelectExistingFolder,
     isBusinessAccount: isBusinessAccount,
@@ -49,45 +55,9 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
 
   onSaveConfigurationSuccess(config);
 
-  let recordIds: any = [];
-  if (createFolderResponse["actionType"] == "create") {
-    // if create configuration for the record which is already had dropbox folder
-    const existingFolderOnDropbox = await dbx.filesListFolder({
-      path: createFolderResponse["path"],
-    });
-
-    existingFolderOnDropbox.result.entries.map(async (entry) => {
-      if (!isNaN(parseInt(entry.name))) {
-        const cRecord = await getConfigurationRecord(
-          dropbox_configuration_app_id,
-          entry.name
-        );
-        if (!!cRecord && !!cRecord["id"]) {
-          recordIds.push(parseInt(entry.name));
-          // Add configuration record fold child folder already presented on dropbox
-          await addChildFolderRecord(
-            dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            entry.name,
-            entry.name
-          );
-        }
-      }
-    });
-  }
-
-  let records;
-  if (recordIds.length > 0) {
-    records = await restClient.record.getAllRecords({
-      app: kintone.app.getId(),
-      condition: `$id not in (${recordIds.join(",")})`,
-    });
-  } else {
-    records = await restClient.record.getAllRecords({
-      app: kintone.app.getId(),
-    });
-  }
+  let records= await restClient.record.getAllRecords({
+    app: kintone.app.getId(),
+  });
 
   // only create folder records, which havent had folder yet.
   const childFolders = records.map((record) => {
@@ -115,10 +85,14 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
         if (!!folderRecord) {
           await addChildFolderRecord(
             dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            folderRecord.id,
-            entry.name
+            {
+              root_folder_name: { value: folderName },
+              dropbox_folder_id: { value: entry.id },
+              target_app_record_id: { value: parseInt(folderRecord.id) },
+              dropbox_folder_name: { value: entry.name },
+              namespace_id: { value: selectedNamespaceId },
+              namespace_name: { value: selectedNamespaceName }
+            }
           );
         }
       })
@@ -172,18 +146,27 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
       errorCode: configurationRecord["errorCode"],
     };
   }
-
+  console.log(createOrSelectExistingFolder)
   if (createOrSelectExistingFolder === "select") {
     console.log("Action select existing folder");
 
-    const rootPath = `${rootFolder}/${folderName}`;
+    let rootPath = "";
+    if (!!selectedFolderId) {
+      const fileMetaDataResp = await dbx.filesGetMetadata({
+        path: selectedFolderId
+      })
+      rootPath = fileMetaDataResp.result.path_lower;
+    }
 
     if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName && !!configurationRecord) {
-      await updateRootRecord(
+      await updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {
-          root_folder_name: { value: folderName }
+          root_folder_name: { value: folderName },
+          dropbox_folder_id: { value: selectedFolderId },
+          namespace_id: { value: "" },
+          namespace_name: { value: "" }
         }
       );
       return {
@@ -194,8 +177,12 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
     } else {
       await addRootRecord(
         dropbox_configuration_app_id,
-        folderName,
-        selectedFolderId
+        {
+          root_folder_name: { value: folderName },
+          dropbox_folder_id: { value: selectedFolderId },
+          namespace_id: { value: "" },
+          namespace_name: { value: "" }
+        }
       );
       return {
         actionType: "create",
@@ -221,7 +208,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         path: `${rootFolder}/${folderName}`,
       });
 
-      await updateRootRecord(
+      await updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {
@@ -235,8 +222,20 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         path: `${rootFolder}/${folderName}`,
       };
     } else if (folderName != metadataResponse.result.name) {
-      const currentRootPath = `${rootFolder}/${metadataResponse.result.name}`;
-      const newRootPath = `${rootFolder}/${folderName}`;
+      console.log("editing folder name and move the files")
+
+      let pathLowerItems = metadataResponse.result.path_lower.split("/");
+
+      // input ["", "aaacc1", "test 3"]
+      pathLowerItems = tail(pathLowerItems);
+      pathLowerItems = reverse(pathLowerItems);
+      pathLowerItems = tail(pathLowerItems);
+      pathLowerItems = reverse(pathLowerItems);
+      // output ["aaacc1"]
+
+      const currentRootPath = metadataResponse.result.path_lower;
+      pathLowerItems.push(folderName)
+      const newRootPath = `/${pathLowerItems.join("/")}`;
 
       const filesMoveResponse = await dbx
         .filesMoveV2({ from_path: currentRootPath, to_path: newRootPath })
@@ -255,7 +254,7 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         };
       }
 
-      updateRootRecord(
+      updateConfigurationRecord(
         dropbox_configuration_app_id,
         configurationRecord["$id"].value,
         {
@@ -270,9 +269,10 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
         path: newRootPath,
       };
     } else {
+      // when user visit config setting and doesnt change dropbox name but the other information, only click button save
       return {
         actionType: "edit",
-        path: `${rootFolder}/${metadataResponse.result.name}`,
+        path: metadataResponse.result.path_lower,
       };
     }
   } else {
@@ -313,7 +313,15 @@ export const findOrCreateRootFolder = async (params: any, rootFolder: string, ol
       folderId = metadataResponse.result.id;
     }
 
-    await addRootRecord(dropbox_configuration_app_id, folderName, folderId);
+    await addRootRecord(
+      dropbox_configuration_app_id,
+      {
+        root_folder_name: { value: folderName },
+        dropbox_folder_id: { value: folderId },
+        namespace_id: { value: "" },
+        namespace_name: { value: "" }
+      }
+    );
 
     console.log("Created folder");
 
@@ -339,7 +347,12 @@ export const getExistingFoldersList = async (dbx) => {
     .map((e) => {
       return {
         label: e.name,
-        value: e.id,
+        namespaceName: null,
+        namespaceId: null,
+        folderId: e.id,
+        children: [],
+        pathLower: e.path_lower,
+        uniqueId: uniqueId(),
       };
     });
 

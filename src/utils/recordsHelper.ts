@@ -53,7 +53,7 @@ export const getConfigurationRecordsByTargetAppRecordId = async (configurationAp
   return !!response['errorCode'] ? response : response.records
 }
 
-export const updateRootRecord = async (configurationAppId: string | number, id: string | number, record: any) => {
+export const updateConfigurationRecord = async (configurationAppId: string | number, id: string | number, record: any) => {
   const restClient = new KintoneRestAPIClient();
   await restClient.record.updateRecord({
     app: configurationAppId,
@@ -62,7 +62,7 @@ export const updateRootRecord = async (configurationAppId: string | number, id: 
   });
 }
 
-export const addRootRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string) => {
+export const addRootRecord = async (configurationAppId: string | number, fieldsValues: any) => {
   const restClient = new KintoneRestAPIClient();
 
   await restClient.record.addRecord({
@@ -71,17 +71,12 @@ export const addRootRecord = async (configurationAppId: string | number, folderN
       target_app_id: {
         value: kintone.app.getId()
       },
-      root_folder_name: {
-        value: folderName
-      },
-      dropbox_folder_id: {
-        value: dropboxFolderId
-      }
+      ...fieldsValues
     }
   })
 }
 
-export const addChildFolderRecord = async (configurationAppId: string | number, folderName: string, dropboxFolderId: string, targetAppRecordId: string | number, dropboxFolderName: string) => {
+export const addChildFolderRecord = async (configurationAppId: string | number, fieldsValues: any) => {
   const restClient = new KintoneRestAPIClient();
 
   await restClient.record.addRecord({
@@ -90,18 +85,7 @@ export const addChildFolderRecord = async (configurationAppId: string | number, 
       target_app_id: {
         value: kintone.app.getId()
       },
-      root_folder_name: {
-        value: folderName
-      },
-      dropbox_folder_id: {
-        value: dropboxFolderId
-      },
-      target_app_record_id: {
-        value: parseInt(targetAppRecordId)
-      },
-      dropbox_folder_name: {
-        value: dropboxFolderName
-      }
+      ...fieldsValues
     }
   })
 }

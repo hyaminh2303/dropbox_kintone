@@ -5,16 +5,17 @@ import {
   RadioButton
 } from "@kintone/kintone-ui-component";
 import { Dropbox } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find, forEach } from "lodash";
+import { find, forEach, tail, reverse } from "lodash";
+import Select from "react-select";
 
 import { setStateAsync } from "../../utils/stateHelper";
 import Fields from "../../utils/Fields";
-import Select from "react-select";
+import MultipleLevelSelect from "../../components/multipleLevelSelect"
 
 import { showNotificationError, showNotificationSuccess } from "../../utils/notifications";
 import {
   getRootConfigurationRecord,
-  updateRootRecord
+  updateConfigurationRecord
 } from "../../utils/recordsHelper";
 import "./style.sass";
 import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
@@ -35,6 +36,7 @@ export default class DropboxConfiguration extends Component {
     this.handleLogicsAfterMounted = this.handleLogicsAfterMounted.bind(this);
 
     this.state = {
+      selectedFolders:[],
       accessToken: "",
       dropboxAppKey: "",
       folderName: "",
@@ -46,6 +48,9 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder: "",
       existingFoldersList: [],
       selectedFolderId: "",
+      selectedFolderPathLower: "",
+      selectedNamespaceId: "",
+      selectedNamespaceName: "",
       isBlockUI: false,
       isBusinessAccount: false,
       createOrSelectExistingFolderOptions: [
@@ -258,7 +263,7 @@ export default class DropboxConfiguration extends Component {
 
     this.setState(newState);
 
-    await updateRootRecord(
+    await updateConfigurationRecord(
       dropbox_configuration_app_id,
       configurationRecord["$id"].value,
       {
@@ -285,6 +290,9 @@ export default class DropboxConfiguration extends Component {
       dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
       folderName: this.props.folderName || "",
       selectedFolderId: this.props.selectedFolderId || "",
+      selectedFolderPathLower: this.props.selectedFolderPathLower || "",
+      selectedNamespaceId: this.props.selectedNamespaceId || "",
+      selectedNamespaceName: this.props.selectedNamespaceName || "",
       createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
       dropboxAppKey: this.props.dropboxAppKey || "",
       memberId: this.props.memberId || "",
@@ -315,9 +323,12 @@ export default class DropboxConfiguration extends Component {
       createOrSelectExistingFolder,
       existingFoldersList,
       selectedFolderId,
+      selectedNamespaceName,
       dropboxAppKey,
       isBlockUI,
     } = this.state;
+
+    let { selectedFolderPathLower } = this.state;
 
     return (
       <div>
@@ -406,25 +417,48 @@ export default class DropboxConfiguration extends Component {
                 <div className="input-config">
                   <Text
                     value={folderName}
-                    onChange={(value) => this.setState({ folderName: value })}
+                    onChange={(value) => {
+                      // Note: On change the dropbox name in config, the selected path must be changed as well.
+                      let pathLowerItems = (selectedFolderPathLower || "").split("/")
+                      // input ["", "aaacc1", "test 3"]
+                      pathLowerItems = tail(pathLowerItems);
+                      pathLowerItems = reverse(pathLowerItems);
+                      pathLowerItems = tail(pathLowerItems);
+                      pathLowerItems = reverse(pathLowerItems);
+                      // output ["aaacc1"]
+                      pathLowerItems.push(value)
+                      selectedFolderPathLower = `/${pathLowerItems.join("/")}`
+
+                      this.setState({
+                        folderName: value,
+                        selectedFolderPathLower: selectedFolderPathLower
+                      })
+                    }}
                     className="kintoneplugin-input-text"
                   />
                 </div>
-              ) : (
-                <div className="input-config">
-                  <Select
-                    options={existingFoldersList}
-                    value={find(existingFoldersList, {
-                      value: selectedFolderId,
-                    })}
-                    className="react-select-dropdown"
-                    onChange={(value) => {
+              ) : (createOrSelectExistingFolder === "select" || isBusinessAccount) ? (
+                <div className="input-config full-width">
+                  <MultipleLevelSelect
+                    setDropboxFolder={(item) => {
                       this.setState({
-                        folderName: value.label,
-                        selectedFolderId: value.value,
-                      });
+                        selectedNamespaceId: item.namespaceId,
+                        selectedNamespaceName: item.namespaceName,
+                        folderName: item.label,
+                        selectedFolderPathLower: item.pathLower,
+                        selectedFolderId: item.folderId,
+                      })
                     }}
+                    selectedFolderPathLower={selectedFolderPathLower}
+                    selectedNamespaceName={selectedNamespaceName}
+                    memberId={memberId}
+                    isBusinessAccount={isBusinessAccount}
+                    dbx={this.dbx}
+                    folderName={folderName}
+                    selectedFolderId={selectedFolderId}
+                    parentFolders={existingFoldersList}
                   />
+
                   <div>
                     <i>
                       <small>
@@ -434,7 +468,7 @@ export default class DropboxConfiguration extends Component {
                     </i>
                   </div>
                 </div>
-              )}
+              ) : null }
             </div>
 
             <div className="kintoneplugin-row">

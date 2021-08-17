@@ -1,6 +1,6 @@
 import { KintoneRestAPIClient } from "@kintone/rest-api-client";
 import { Dropbox, Error, files } from "dropbox"; // eslint-disable-line no-unused-vars
-import { find } from 'lodash';
+import { find, uniqueId, forEach, map } from 'lodash';
 
 import { showNotificationError } from "../../../utils/notifications";
 import {
@@ -10,7 +10,7 @@ import {
   getConfigurationRecordsByTargetAppRecordId,
   getRootConfigurationRecord,
   getConfigurationRecord,
-  updateRootRecord
+  updateConfigurationRecord
 } from "../../../utils/recordsHelper";
 
 export const getTeamMembers = async (dbx: any, accessToken: string) => {
@@ -41,6 +41,10 @@ export const getTeamMembers = async (dbx: any, accessToken: string) => {
   return membersList;
 }
 
+const sleep = (ms) =>{
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export const getExistingFoldersList = async (memberId: string, accessToken: string) => {
   let dbx = new Dropbox({accessToken: accessToken});
 
@@ -50,7 +54,6 @@ export const getExistingFoldersList = async (memberId: string, accessToken: stri
       return namespace.namespace_type['.tag'] == "team_folder";
     }) || {namespace_id: ''}
 
-
     dbx.selectUser = memberId;
     dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${namespace['namespace_id']}"}`;
 
@@ -59,7 +62,15 @@ export const getExistingFoldersList = async (memberId: string, accessToken: stri
     const folders = foldersResponse.result.entries.filter((entry) => {
       return entry['.tag'] == 'folder' && !!entry.shared_folder_id;
     }).map((entry: any) => {
-      return { label: entry.name, value: entry.shared_folder_id };
+      return {
+        label: entry.name,
+        namespaceName: entry.name,
+        namespaceId: entry.shared_folder_id,
+        folderId: null,
+        children: [],
+        pathLower: "",
+        uniqueId: uniqueId()
+      };
     });
 
     return folders;
@@ -77,6 +88,9 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     dropbox_configuration_app_id,
     memberId,
     selectedFolderId,
+    selectedNamespaceId,
+    selectedNamespaceName,
+    // selectedFolderPathLower,
     folderName,
     dropboxAppKey,
     createOrSelectExistingFolder,
@@ -87,12 +101,14 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
   const rootFolder = "";
 
   dbx.selectUser = `${memberId}`;
-  dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedFolderId}"}`;
+  dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedNamespaceId}"}`;
   const createFolderResponse = await findOrCreateRootFolder(params, rootFolder, oldConfig, dbx);
 
   if (!!createFolderResponse["errorCode"]) {
     return;
   }
+
+  const selectedFolderPathLower = createFolderResponse['path'];
 
   const restClient = new KintoneRestAPIClient();
 
@@ -106,50 +122,17 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     isBusinessAccount: isBusinessAccount,
     isValidAccessToken: isValidAccessToken,
     selectedFolderId: selectedFolderId,
+    selectedNamespaceId: selectedNamespaceId,
+    selectedNamespaceName: selectedNamespaceName,
+    selectedFolderPathLower: selectedFolderPathLower,
     memberId: memberId
   };
 
   onSaveConfigurationSuccess(config);
 
-  let recordIds: any = [];
-  if (createFolderResponse["actionType"] == "create") {
-    // if create configuration for the record which is already had dropbox folder
-    const existingFolderOnDropbox = await dbx.filesListFolder({
-      path: createFolderResponse["path"],
-    });
-
-    existingFolderOnDropbox.result.entries.map(async (entry) => {
-      if (!isNaN(parseInt(entry.name))) {
-        const cRecord = await getConfigurationRecord(
-          dropbox_configuration_app_id,
-          entry.name
-        );
-        if (!!cRecord && !!cRecord["id"]) {
-          recordIds.push(parseInt(entry.name));
-          // Add configuration record fold child folder already presented on dropbox
-          await addChildFolderRecord(
-            dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            entry.name,
-            entry.name
-          );
-        }
-      }
-    });
-  }
-
-  let records;
-  if (recordIds.length > 0) {
-    records = await restClient.record.getAllRecords({
-      app: kintone.app.getId(),
-      condition: `$id not in (${recordIds.join(",")})`,
-    });
-  } else {
-    records = await restClient.record.getAllRecords({
-      app: kintone.app.getId(),
-    });
-  }
+  let records = await restClient.record.getAllRecords({
+    app: kintone.app.getId(),
+  });
 
   const childFolders = records.map((record) => {
     return {
@@ -159,7 +142,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
   });
 
   const childFolderPaths = childFolders.map((folder) => {
-    return `/${folder.name}`;
+    return [createFolderResponse["path"], folder.name].join("/");
   });
 
   if (createFolderResponse["actionType"] == "create") {
@@ -176,15 +159,20 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
         if (!!folderRecord) {
           await addChildFolderRecord(
             dropbox_configuration_app_id,
-            folderName,
-            entry.id,
-            folderRecord.id,
-            entry.name
+            {
+              root_folder_name: { value: folderName },
+              dropbox_folder_id: { value: entry.id },
+              target_app_record_id: { value: parseInt(folderRecord.id) },
+              dropbox_folder_name: { value: entry.name },
+              namespace_id: { value: selectedNamespaceId },
+              namespace_name: { value: selectedNamespaceName }
+            }
           );
         }
       })
     );
   }
+
 }
 
 const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig: any, dbx) => {
@@ -193,13 +181,16 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
     folderName,
     accessToken,
     selectedFolderId,
+    selectedNamespaceId,
+    selectedNamespaceName,
   } = params;
 
   const configurationRecord = await getRootConfigurationRecord(
     dropbox_configuration_app_id
   );
 
-  if (folderName !== oldConfig.folderName) {
+  if (folderName !== oldConfig.folderName || selectedNamespaceId !== oldConfig.selectedNamespaceId) {
+    console.log("changed namespace")
     const records = await getConfigurationRecordsByTargetAppRecordId(
       dropbox_configuration_app_id
     );
@@ -211,10 +202,11 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
         errorCode: "invalidConfigurationAppId",
       };
     }
-
     const recordIds = records.map((record) => {
       return record["$id"].value;
     });
+
+    console.log("clean up configuration records", recordIds)
 
     await deleteAllConfigurationRecordsBy(
       dropbox_configuration_app_id,
@@ -224,21 +216,29 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
 
   if (!!configurationRecord && !!configurationRecord["errorCode"]) {
     // this mean wrong dropbox_configuration_app_id
-
-    showNotificationError(configurationRecord["message"]);
     return {
       errorCode: configurationRecord["errorCode"],
     };
   }
 
-  const rootPath = "";
+
+  let rootPath = "";
+  if (!!selectedFolderId) {
+    const fileMetaDataResp = await dbx.filesGetMetadata({
+      path: selectedFolderId
+    })
+    rootPath = fileMetaDataResp.result.path_lower;
+  }
 
   if (accessToken == oldConfig.accessToken && folderName == oldConfig.folderName && !!configurationRecord) {
-    await updateRootRecord(
+    await updateConfigurationRecord(
       dropbox_configuration_app_id,
       configurationRecord["$id"].value,
       {
-        root_folder_name: { value: folderName }
+        root_folder_name: { value: folderName },
+        dropbox_folder_id: { value: selectedFolderId },
+        namespace_id: { value: selectedNamespaceId },
+        namespace_name: { value: selectedNamespaceName }
       }
     );
     return {
@@ -249,8 +249,12 @@ const findOrCreateRootFolder = async (params: any, rootFolder: string, oldConfig
   } else {
     await addRootRecord(
       dropbox_configuration_app_id,
-      folderName,
-      selectedFolderId
+      {
+        root_folder_name: { value: folderName },
+        dropbox_folder_id: { value: selectedFolderId },
+        namespace_id: { value: selectedNamespaceId },
+        namespace_name: { value: selectedNamespaceName }
+      }
     );
     return {
       actionType: "create",

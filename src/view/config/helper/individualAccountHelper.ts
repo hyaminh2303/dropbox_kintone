@@ -16,6 +16,7 @@ import {
 export const saveConfigurations = async (params: any, onSaveConfigurationSuccess: Function, oldConfig: any, dbx: any) => {
   const {
     accessToken,
+    refreshToken,
     folderName,
     selectedField,
     dropbox_configuration_app_id,
@@ -42,6 +43,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
 
   const config = {
     accessToken: accessToken,
+    refreshToken: refreshToken,
     dropboxAppKey: dropboxAppKey,
     selectedField: selectedField,
     folderName: folderName,

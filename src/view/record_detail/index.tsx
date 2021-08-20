@@ -67,8 +67,8 @@ export default class RecordDetail extends Component {
   }
 
   async validateDropboxAccessToken() {
-    const { config: { accessToken } } = this.props;
-    const result: any = await validateDropboxToken(accessToken);
+    const { config: { accessToken, refreshToken } } = this.props;
+    const result: any = await validateDropboxToken(accessToken, refreshToken);
 
     if (result["status"] == "invalidKey") {
       showNotificationError(
@@ -96,7 +96,7 @@ export default class RecordDetail extends Component {
   }
 
   async getFolderRoot() {
-    const { config, config: { accessToken } } = this.props;
+    const { config: { accessToken, refreshToken } } = this.props;
 
     await this.validateDropboxAccessToken()
 
@@ -104,7 +104,8 @@ export default class RecordDetail extends Component {
       return;
     }
 
-    this.dbx = new Dropbox({ accessToken: accessToken })
+    this.dbx = new Dropbox({ accessToken: accessToken, refreshToken: refreshToken})
+    await this.dbx.auth.checkAndRefreshAccessToken();
 
     // Add namespace and member to this.dbx in method findOrCreateDropboxConfigurationRecordAndGetRootPath
     const response = await this.findOrCreateDropboxConfigurationRecordAndGetRootPath();

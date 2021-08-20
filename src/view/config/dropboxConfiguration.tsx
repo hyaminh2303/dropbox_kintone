@@ -1,21 +1,20 @@
 import React, { Component } from "react";
-import {
-  Text,
-  Label,
-  RadioButton
-} from "@kintone/kintone-ui-component";
+import { Text, Label, RadioButton } from "@kintone/kintone-ui-component";
 import { Dropbox } from "dropbox"; // eslint-disable-line no-unused-vars
 import { find, forEach, tail, reverse } from "lodash";
 import Select from "react-select";
 
 import { setStateAsync } from "../../utils/stateHelper";
 import Fields from "../../utils/Fields";
-import MultipleLevelSelect from "../../components/multipleLevelSelect"
+import MultipleLevelSelect from "../../components/multipleLevelSelect";
 
-import { showNotificationError, showNotificationSuccess } from "../../utils/notifications";
+import {
+  showNotificationError,
+  showNotificationSuccess,
+} from "../../utils/notifications";
 import {
   getRootConfigurationRecord,
-  updateConfigurationRecord
+  updateConfigurationRecord,
 } from "../../utils/recordsHelper";
 import "./style.sass";
 import { validateDropboxToken } from "../../utils/dropboxAccessTokenValidation";
@@ -30,14 +29,17 @@ export default class DropboxConfiguration extends Component {
     super(props);
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
-    this.validateDropboxAccessToken = this.validateDropboxAccessToken.bind(this);
-    this.handleLogicsForValidateAccessToken = this.handleLogicsForValidateAccessToken.bind(this);
+    this.validateDropboxAccessToken =
+      this.validateDropboxAccessToken.bind(this);
+    this.handleClickValidateAcessToken =
+      this.handleClickValidateAcessToken.bind(this);
     this.handleChangeMember = this.handleChangeMember.bind(this);
     this.handleLogicsAfterMounted = this.handleLogicsAfterMounted.bind(this);
 
     this.state = {
-      selectedFolders:[],
+      selectedFolders: [],
       accessToken: "",
+      refreshToken: "",
       dropboxAppKey: "",
       folderName: "",
       dropbox_configuration_app_id: "",
@@ -63,7 +65,7 @@ export default class DropboxConfiguration extends Component {
           label: "Select an existing folder",
           value: "select",
           isDisabled: false,
-        }
+        },
       ],
     };
   }
@@ -75,23 +77,23 @@ export default class DropboxConfiguration extends Component {
   async handleClickSaveButton() {
     const {
       accessToken,
+      refreshToken,
       selectedField,
       isBusinessAccount,
       selectedFolderId,
       dropboxAppKey,
       dropbox_configuration_app_id,
-      folderName
+      folderName,
     } = this.state;
-
-    this.setState({isBlockUI: true})
+    this.setState({ isBlockUI: true });
 
     try {
       if (
-        accessToken === "" ||
         dropboxAppKey === "" ||
         dropbox_configuration_app_id === "" ||
         selectedField === "" ||
-        folderName == "") {
+        folderName == ""
+      ) {
         showNotificationError("All fields are requied!");
       } else {
         // if not business account
@@ -101,49 +103,54 @@ export default class DropboxConfiguration extends Component {
             this.props.setPluginConfig,
             this.props.config,
             this.dbx
-          )
+          );
         } else {
           await individualAccHelper.saveConfigurations(
             this.state,
             this.props.setPluginConfig,
             this.props.config,
             this.dbx
-          )
+          );
         }
-        showNotificationSuccess("Configurations has been saved successfully!")
+        showNotificationSuccess("Configurations has been saved successfully!");
       }
-      this.setState({isBlockUI: false})
+      this.setState({ isBlockUI: false });
     } catch (error) {
-      this.setState({isBlockUI: false})
+      this.setState({ isBlockUI: false });
     }
   }
 
   async validateDropboxAccessToken() {
-    const { accessToken } = this.state;
-    const result: any = await validateDropboxToken(accessToken);
+    const { accessToken, refreshToken } = this.state;
+    const result: any = await validateDropboxToken(accessToken, refreshToken);
 
     if (result["status"] == "invalidKey") {
-      showNotificationError(
-        "Invalid access token, please generate a new one."
-      );
+      showNotificationError("Invalid access token, please generate a new one.");
     } else if (result["status"] == "unauthorized") {
-      showNotificationError(
-        "Invalid access token, please generate a new one."
-      );
+      showNotificationError("Invalid access token, please generate a new one.");
     } else if (result["status"] == "appPermissionError") {
-      await setStateAsync({
-        isValidAccessToken: false
-      }, this);
+      await setStateAsync(
+        {
+          isValidAccessToken: false,
+        },
+        this
+      );
     } else if (result["status"] == "businessAccount") {
-      await setStateAsync({
-        isBusinessAccount: true,
-        isValidAccessToken: true
-      }, this);
+      await setStateAsync(
+        {
+          isBusinessAccount: true,
+          isValidAccessToken: true,
+        },
+        this
+      );
     } else if (result["status"] == "individualAccount") {
-      await setStateAsync({
-        isBusinessAccount: false,
-        isValidAccessToken: true
-      }, this);
+      await setStateAsync(
+        {
+          isBusinessAccount: false,
+          isValidAccessToken: true,
+        },
+        this
+      );
     }
   }
 
@@ -163,43 +170,54 @@ export default class DropboxConfiguration extends Component {
     });
   }
 
-  async handleLogicsForValidateAccessToken() {
-    const { accessToken, memberId } = this.state;
-    await this.validateDropboxAccessToken();
-
-    if (!this.state.isValidAccessToken) {
-      return;
-    }
-
-    this.dbx = new Dropbox({ accessToken: accessToken });
-
-    if (this.state.isBusinessAccount) {
-      const membersList = await businessAccHelper.getTeamMembers(this.dbx, accessToken);
-      await setStateAsync({
-        membersList: membersList
-      }, this)
-
-      if (!!memberId) {
-        const listFolders = await businessAccHelper.getExistingFoldersList(
-          memberId, accessToken
-        );
-
-        await setStateAsync({
-          existingFoldersList: listFolders
-        }, this);
-      }
+  async handleClickValidateAcessToken() {
+    const { dropboxAppKey, isBusinessAccount, dropbox_configuration_app_id  } = this.state;
+    if (
+      dropboxAppKey === "" ||
+      dropbox_configuration_app_id === ""
+    ) {
+      showNotificationError("Dropbox App Key and Dropbox information app ID are requied!");
     } else {
-      const listFolders = await individualAccHelper.getExistingFoldersList(this.dbx);
+      // if not business account
+      this.props.setPluginConfig(
+        {
+          accessToken: "",
+          refreshToken: "",
+          createOrSelectExistingFolder: "",
+          dropboxAppKey: dropboxAppKey,
+          dropbox_configuration_app_id: dropbox_configuration_app_id,
+          folderName: "",
+          isBusinessAccount: "",
+          isValidAccessToken: "",
+          selectedField: "",
+          selectedFolderId: "",
+          selectedFolderPathLower: ""
+        },
+        () => {
+        }
+      );
+      const dbx = new Dropbox({ clientId: dropboxAppKey });
+      const authUrl = await dbx.auth.getAuthenticationUrl(
+        window.location.href,
+        null,
+        "code",
+        "offline",
+        null,
+        "none",
+        true
+      );
 
-      await setStateAsync({
-        existingFoldersList: listFolders
-      }, this)
+      window.sessionStorage.clear();
+      window.sessionStorage.setItem("codeVerifier", dbx.auth.codeVerifier);
+      window.sessionStorage.setItem("clientid", dbx.auth.dropboxAppKey);
+      window.location.href = authUrl
     }
   }
 
   async handleLogicsAfterMounted() {
     // Get Root Folder
-    const { dropbox_configuration_app_id, accessToken, selectedFolderId } = this.state;
+    const { dropbox_configuration_app_id, accessToken, selectedFolderId } =
+      this.state;
 
     if (!accessToken && !dropbox_configuration_app_id) {
       return;
@@ -215,10 +233,9 @@ export default class DropboxConfiguration extends Component {
       return;
     }
 
-    await this.handleLogicsForValidateAccessToken()
+    await this.handleLogicsForValidateAccessToken();
 
     if (!configurationRecord) {
-
       // this mean never finished setup before
       return;
     }
@@ -238,10 +255,16 @@ export default class DropboxConfiguration extends Component {
     let metadataResponse: any;
     if (this.state.isBusinessAccount) {
       metadataResponse = await businessAccHelper.getSelectedDropboxFolder(
-        this.dbx, accessToken, this.state.memberId, dropboxFolderId
-      )
+        this.dbx,
+        accessToken,
+        this.state.memberId,
+        dropboxFolderId
+      );
     } else {
-      metadataResponse = await individualAccHelper.getSelectedDropboxFolder(this.dbx, dropboxFolderId)
+      metadataResponse = await individualAccHelper.getSelectedDropboxFolder(
+        this.dbx,
+        dropboxFolderId
+      );
     }
 
     if (metadataResponse["errorCode"] == "notFoundFolderOnDropbox") {
@@ -272,6 +295,69 @@ export default class DropboxConfiguration extends Component {
     );
   }
 
+  async handleLogicsForValidateAccessToken() {
+    const { accessToken, memberId, refreshToken } = this.state;
+    await this.validateDropboxAccessToken();
+
+    if (!this.state.isValidAccessToken) {
+      return;
+    }
+
+    this.dbx = new Dropbox({ accessToken: accessToken, refreshToken: refreshToken });
+    await this.dbx.auth.checkAndRefreshAccessToken();
+    if (this.state.isBusinessAccount) {
+      const membersList = await businessAccHelper.getTeamMembers(this.dbx, accessToken);
+      await setStateAsync({
+        membersList: membersList
+      }, this)
+
+      if (!!memberId) {
+        const listFolders = await businessAccHelper.getExistingFoldersList(
+          memberId, accessToken, refreshToken
+        );
+
+        await setStateAsync({
+          existingFoldersList: listFolders
+        }, this);
+      }
+    } else {
+      const listFolders = await individualAccHelper.getExistingFoldersList(this.dbx);
+
+      await setStateAsync({
+        existingFoldersList: listFolders
+      }, this)
+    }
+  }
+
+  async getAcessTokenFromToCode() {
+    const { dropboxAppKey } = this.state;
+    this.dbx = new Dropbox({ clientId: dropboxAppKey });
+    this.dbx.auth.setCodeVerifier(window.sessionStorage.getItem("codeVerifier"));
+    const urlParams = new URLSearchParams(window.location.search);
+    const dropboxAuthCode = urlParams.get("code");
+    if (!dropboxAuthCode) {
+      return;
+    }
+
+    let response = {};
+    try {
+      response = await this.dbx.auth.getAccessTokenFromCode(
+        window.location.href,
+        dropboxAuthCode
+        );
+      } catch {
+        // In case the code already used and then user is trying to reload, then that code cannot be used anymore. this case Dropbox will return 400
+        window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
+      }
+    if (response.status === 200) {
+      const {
+        result: { access_token, refresh_token },
+      } = response;
+      await this.dbx.auth.checkAndRefreshAccessToken();
+      this.setState({ accessToken: access_token, refreshToken : refresh_token})
+    }
+  }
+
   UNSAFE_componentWillMount() {
     let formFields: any = [];
 
@@ -283,29 +369,32 @@ export default class DropboxConfiguration extends Component {
         });
       }
     });
-
-    this.setState({
-      accessToken: this.props.accessToken || "",
-      selectedField: this.props.selectedField || "",
-      dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
-      folderName: this.props.folderName || "",
-      selectedFolderId: this.props.selectedFolderId || "",
-      selectedFolderPathLower: this.props.selectedFolderPathLower || "",
-      selectedNamespaceId: this.props.selectedNamespaceId || "",
-      selectedNamespaceName: this.props.selectedNamespaceName || "",
-      createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
-      dropboxAppKey: this.props.dropboxAppKey || "",
-      memberId: this.props.memberId || "",
-      formFields: formFields,
-      isValidAccessToken: false,
-      existingFoldersList: [],
-      membersList: [],
-      isBusinessAccount: false,
-    }, async () => {
-      this.setState({isBlockUI: true})
-      await this.handleLogicsAfterMounted()
-      this.setState({isBlockUI: false})
-    })
+    this.setState(
+      {
+        accessToken: this.props.accessToken || "",
+        selectedField: this.props.selectedField || "",
+        dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
+        folderName: this.props.folderName || "",
+        selectedFolderId: this.props.selectedFolderId || "",
+        selectedFolderPathLower: this.props.selectedFolderPathLower || "",
+        selectedNamespaceId: this.props.selectedNamespaceId || "",
+        selectedNamespaceName: this.props.selectedNamespaceName || "",
+        createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
+        dropboxAppKey: this.props.dropboxAppKey || "",
+        memberId: this.props.memberId || "",
+        formFields: formFields,
+        isValidAccessToken: false,
+        existingFoldersList: [],
+        membersList: [],
+        isBusinessAccount: false,
+      },
+      async () => {
+        this.setState({ isBlockUI: true });
+        await this.getAcessTokenFromToCode();
+        await this.handleLogicsAfterMounted();
+        this.setState({ isBlockUI: false });
+      }
+    );
   }
 
   render() {
@@ -337,9 +426,9 @@ export default class DropboxConfiguration extends Component {
         <div className="tab-content">
           <div>
 
-            <div className="kintoneplugin-row kintoneplugin-flex">
+            <div className="kintoneplugin-row kintoneplugin-flex ">
               <div>
-                <Label text="Dropbox App Key" isRequired={false} />
+              <Label text="Dropbox App Key" isRequired={false} />
                 <div className="input-config">
                   <Text
                     value={dropboxAppKey}
@@ -350,23 +439,10 @@ export default class DropboxConfiguration extends Component {
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="kintoneplugin-row kintoneplugin-flex">
-              <div>
-                <Label text="Access token" isRequired={false} />
-                <div className="input-config">
-                  <Text
-                    value={accessToken}
-                    onChange={ (value) => this.setState({accessToken: value}) }
-                    className="kintoneplugin-input-text"
-                  />
-                </div>
-              </div>
               <div>
                 <button
                   className="kintoneplugin-button-dialog-cancel btn-get-members"
-                  onClick={this.handleLogicsForValidateAccessToken}
+                  onClick={this.handleClickValidateAcessToken}
                 >
                   Validate access token
                 </button>
@@ -419,25 +495,28 @@ export default class DropboxConfiguration extends Component {
                     value={folderName}
                     onChange={(value) => {
                       // Note: On change the dropbox name in config, the selected path must be changed as well.
-                      let pathLowerItems = (selectedFolderPathLower || "").split("/")
+                      let pathLowerItems = (
+                        selectedFolderPathLower || ""
+                      ).split("/");
                       // input ["", "aaacc1", "test 3"]
                       pathLowerItems = tail(pathLowerItems);
                       pathLowerItems = reverse(pathLowerItems);
                       pathLowerItems = tail(pathLowerItems);
                       pathLowerItems = reverse(pathLowerItems);
                       // output ["aaacc1"]
-                      pathLowerItems.push(value)
-                      selectedFolderPathLower = `/${pathLowerItems.join("/")}`
+                      pathLowerItems.push(value);
+                      selectedFolderPathLower = `/${pathLowerItems.join("/")}`;
 
                       this.setState({
                         folderName: value,
-                        selectedFolderPathLower: selectedFolderPathLower
-                      })
+                        selectedFolderPathLower: selectedFolderPathLower,
+                      });
                     }}
                     className="kintoneplugin-input-text"
                   />
                 </div>
-              ) : (createOrSelectExistingFolder === "select" || isBusinessAccount) ? (
+              ) : createOrSelectExistingFolder === "select" ||
+                isBusinessAccount ? (
                 <div className="input-config full-width">
                   <MultipleLevelSelect
                     setDropboxFolder={(item) => {
@@ -447,7 +526,7 @@ export default class DropboxConfiguration extends Component {
                         folderName: item.label,
                         selectedFolderPathLower: item.pathLower,
                         selectedFolderId: item.folderId,
-                      })
+                      });
                     }}
                     selectedFolderPathLower={selectedFolderPathLower}
                     selectedNamespaceName={selectedNamespaceName}
@@ -468,7 +547,7 @@ export default class DropboxConfiguration extends Component {
                     </i>
                   </div>
                 </div>
-              ) : null }
+              ) : null}
             </div>
 
             <div className="kintoneplugin-row">
@@ -499,7 +578,7 @@ export default class DropboxConfiguration extends Component {
               className={`kintoneplugin-button-dialog-ok btn-action ${
                 !isValidAccessToken ? "disabled" : ""
               }`}
-              onClick={isValidAccessToken ? this.handleClickSaveButton : null}
+              onClick={this.handleClickSaveButton}
             >
               Save
             </button>

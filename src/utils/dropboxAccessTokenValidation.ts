@@ -4,8 +4,9 @@ import { Dropbox, Error, files } from 'dropbox';
 // getlistfolder (not ok) + teamGetInfo (ok) => business account
 // getlistfolder (not ok) + teamGetInfo (not ok) => Invalid account
 //
-export const validateDropboxToken = async (accessToken: string) => {
-  const dbx = new Dropbox({accessToken: accessToken})
+export const validateDropboxToken = async (accessToken: string, refreshToken: string) => {
+  const dbx = new Dropbox({accessToken: accessToken, refreshToken: refreshToken});
+  await dbx.auth.checkAndRefreshAccessToken();
   const filesListFolderResponse: any = await dbx.filesListFolder({path: ''}).catch((errorResp: any) => {
     if (!!errorResp.error['error_summary']) {
       return {
@@ -58,6 +59,6 @@ export const validateDropboxToken = async (accessToken: string) => {
 }
 
 export const isBusinessAccount = async (accessToken: string) => {
-  const result: any = await validateDropboxToken(this.props.config.accessToken);
+  const result: any = await validateDropboxToken(this.props.config.accessToken, this.props.config.refreshToken);
   return result["status"] == "businessAccount";
 }

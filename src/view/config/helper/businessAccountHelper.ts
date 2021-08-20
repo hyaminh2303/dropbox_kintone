@@ -45,8 +45,9 @@ const sleep = (ms) =>{
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export const getExistingFoldersList = async (memberId: string, accessToken: string) => {
-  let dbx = new Dropbox({accessToken: accessToken});
+export const getExistingFoldersList = async (memberId: string, accessToken: string, refreshToken: string) => {
+  let dbx = new Dropbox({accessToken: accessToken, refreshToken: refreshToken});
+  await dbx.auth.checkAndRefreshAccessToken();
 
   try {
     const teamNamespacesListResult = await dbx.teamNamespacesList({limit: 1000})
@@ -84,6 +85,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
 
   const {
     accessToken,
+    refreshToken,
     selectedField,
     dropbox_configuration_app_id,
     memberId,
@@ -97,7 +99,6 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
     isBusinessAccount,
     isValidAccessToken
   } = params;
-
   const rootFolder = "";
 
   dbx.selectUser = `${memberId}`;
@@ -114,6 +115,7 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
 
   const config: any = {
     accessToken: accessToken,
+    refreshToken: refreshToken,
     dropboxAppKey: dropboxAppKey,
     selectedField: selectedField,
     folderName: folderName,

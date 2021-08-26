@@ -42,6 +42,7 @@ export default class RecordDetail extends Component {
     this.onOpenDialogEditNameFolder = this.onOpenDialogEditNameFolder.bind(this)
     this.editChildFolderName = this.editChildFolderName.bind(this)
     this.validateDropboxAccessToken = this.validateDropboxAccessToken.bind(this)
+    this.event = null
 
     let rootPath = ''
 
@@ -64,6 +65,13 @@ export default class RecordDetail extends Component {
 
   UNSAFE_componentWillMount() {
     this.getFolderRoot()
+  }
+
+  UNSAFE_componentWillReceiveProps(nextProps: any) {
+    if(this.event !== nextProps.event) {
+      this.event = nextProps.event
+      this.getFolderRoot()
+    }
   }
 
   async validateDropboxAccessToken() {

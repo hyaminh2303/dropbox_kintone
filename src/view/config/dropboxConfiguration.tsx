@@ -121,9 +121,13 @@ export default class DropboxConfiguration extends Component {
   }
 
   async validateDropboxAccessToken() {
-    const { accessToken, refreshToken } = this.state;
-    const result: any = await validateDropboxToken(accessToken, refreshToken);
-
+    const configRefeshtoken = this.props.config.refreshToken;
+    const { accessToken, refreshToken, dropboxAppKey } = this.state;
+    const result: any = await validateDropboxToken(
+      accessToken,
+      !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      dropboxAppKey
+    );
     if (result["status"] == "invalidKey") {
       showNotificationError("Invalid access token, please generate a new one.");
     } else if (result["status"] == "unauthorized") {
@@ -155,12 +159,15 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleChangeMember(member: any) {
-    const { accessToken } = this.state;
+    const configRefeshtoken = this.props.config.refreshToken;
+    const { accessToken, refreshToken, dropboxAppKey } = this.state;
     this.setState({ isBlockUI: true });
 
     const existingFoldersList = await businessAccHelper.getExistingFoldersList(
       member.value,
-      accessToken
+      accessToken,
+      !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      dropboxAppKey
     );
 
     this.setState({
@@ -171,12 +178,12 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleClickValidateAcessToken() {
-    const { dropboxAppKey, isBusinessAccount, dropbox_configuration_app_id  } = this.state;
-    if (
-      dropboxAppKey === "" ||
-      dropbox_configuration_app_id === ""
-    ) {
-      showNotificationError("Dropbox App Key and Dropbox information app ID are requied!");
+    const { dropboxAppKey, isBusinessAccount, dropbox_configuration_app_id } =
+      this.state;
+    if (dropboxAppKey === "" || dropbox_configuration_app_id === "") {
+      showNotificationError(
+        "Dropbox App Key and Dropbox information app ID are requied!"
+      );
     } else {
       // if not business account
       this.props.setPluginConfig(
@@ -191,10 +198,9 @@ export default class DropboxConfiguration extends Component {
           isValidAccessToken: "",
           selectedField: "",
           selectedFolderId: "",
-          selectedFolderPathLower: ""
+          selectedFolderPathLower: "",
         },
-        () => {
-        }
+        () => {}
       );
       const dbx = new Dropbox({ clientId: dropboxAppKey });
       const authUrl = await dbx.auth.getAuthenticationUrl(
@@ -210,14 +216,20 @@ export default class DropboxConfiguration extends Component {
       window.sessionStorage.clear();
       window.sessionStorage.setItem("codeVerifier", dbx.auth.codeVerifier);
       window.sessionStorage.setItem("clientid", dbx.auth.dropboxAppKey);
-      window.location.href = authUrl
+      window.location.href = authUrl;
     }
   }
 
   async handleLogicsAfterMounted() {
     // Get Root Folder
-    const { dropbox_configuration_app_id, accessToken, selectedFolderId } =
-      this.state;
+    const configRefeshtoken = this.props.config.refreshToken;
+    const {
+      dropbox_configuration_app_id,
+      accessToken,
+      selectedFolderId,
+      refreshToken,
+      dropboxAppKey,
+    } = await this.state;
 
     if (!accessToken && !dropbox_configuration_app_id) {
       return;
@@ -251,14 +263,15 @@ export default class DropboxConfiguration extends Component {
     }
 
     const dropboxFolderId = configurationRecord.dropbox_folder_id.value;
-
     let metadataResponse: any;
     if (this.state.isBusinessAccount) {
       metadataResponse = await businessAccHelper.getSelectedDropboxFolder(
         this.dbx,
         accessToken,
         this.state.memberId,
-        dropboxFolderId
+        dropboxFolderId,
+        !!configRefeshtoken ? configRefeshtoken : refreshToken,
+        dropboxAppKey
       );
     } else {
       metadataResponse = await individualAccHelper.getSelectedDropboxFolder(
@@ -296,43 +309,67 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleLogicsForValidateAccessToken() {
-    const { accessToken, memberId, refreshToken } = this.state;
+    const configRefeshtoken = this.props.config.refreshToken;
+    const { accessToken, memberId, refreshToken, dropboxAppKey } = this.state;
     await this.validateDropboxAccessToken();
 
     if (!this.state.isValidAccessToken) {
       return;
     }
 
-    this.dbx = new Dropbox({ accessToken: accessToken, refreshToken: refreshToken });
+    this.dbx = new Dropbox({
+      accessToken: accessToken,
+      refreshToken: !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      clientId: dropboxAppKey,
+    });
     await this.dbx.auth.checkAndRefreshAccessToken();
     if (this.state.isBusinessAccount) {
-      const membersList = await businessAccHelper.getTeamMembers(this.dbx, accessToken);
-      await setStateAsync({
-        membersList: membersList
-      }, this)
+      const membersList = await businessAccHelper.getTeamMembers(
+        this.dbx,
+        accessToken
+      );
+      await setStateAsync(
+        {
+          membersList: membersList,
+        },
+        this
+      );
 
       if (!!memberId) {
         const listFolders = await businessAccHelper.getExistingFoldersList(
-          memberId, accessToken, refreshToken
+          memberId,
+          accessToken,
+          !!configRefeshtoken ? configRefeshtoken : refreshToken,
+          dropboxAppKey
         );
 
-        await setStateAsync({
-          existingFoldersList: listFolders
-        }, this);
+        await setStateAsync(
+          {
+            existingFoldersList: listFolders,
+          },
+          this
+        );
       }
     } else {
-      const listFolders = await individualAccHelper.getExistingFoldersList(this.dbx);
+      const listFolders = await individualAccHelper.getExistingFoldersList(
+        this.dbx
+      );
 
-      await setStateAsync({
-        existingFoldersList: listFolders
-      }, this)
+      await setStateAsync(
+        {
+          existingFoldersList: listFolders,
+        },
+        this
+      );
     }
   }
 
   async getAcessTokenFromToCode() {
     const { dropboxAppKey } = this.state;
     this.dbx = new Dropbox({ clientId: dropboxAppKey });
-    this.dbx.auth.setCodeVerifier(window.sessionStorage.getItem("codeVerifier"));
+    this.dbx.auth.setCodeVerifier(
+      window.sessionStorage.getItem("codeVerifier")
+    );
     const urlParams = new URLSearchParams(window.location.search);
     const dropboxAuthCode = urlParams.get("code");
     if (!dropboxAuthCode) {
@@ -344,17 +381,17 @@ export default class DropboxConfiguration extends Component {
       response = await this.dbx.auth.getAccessTokenFromCode(
         window.location.href,
         dropboxAuthCode
-        );
-      } catch {
-        // In case the code already used and then user is trying to reload, then that code cannot be used anymore. this case Dropbox will return 400
-        window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
-      }
+      );
+    } catch {
+      // In case the code already used and then user is trying to reload, then that code cannot be used anymore. this case Dropbox will return 400
+      window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
+    }
     if (response.status === 200) {
       const {
         result: { access_token, refresh_token },
       } = response;
       await this.dbx.auth.checkAndRefreshAccessToken();
-      this.setState({ accessToken: access_token, refreshToken : refresh_token})
+      this.setState({ accessToken: access_token, refreshToken: refresh_token });
     }
   }
 
@@ -373,13 +410,15 @@ export default class DropboxConfiguration extends Component {
       {
         accessToken: this.props.accessToken || "",
         selectedField: this.props.selectedField || "",
-        dropbox_configuration_app_id: this.props.dropbox_configuration_app_id || "",
+        dropbox_configuration_app_id:
+          this.props.dropbox_configuration_app_id || "",
         folderName: this.props.folderName || "",
         selectedFolderId: this.props.selectedFolderId || "",
         selectedFolderPathLower: this.props.selectedFolderPathLower || "",
         selectedNamespaceId: this.props.selectedNamespaceId || "",
         selectedNamespaceName: this.props.selectedNamespaceName || "",
-        createOrSelectExistingFolder: this.props.createOrSelectExistingFolder || "",
+        createOrSelectExistingFolder:
+          this.props.createOrSelectExistingFolder || "",
         dropboxAppKey: this.props.dropboxAppKey || "",
         memberId: this.props.memberId || "",
         formFields: formFields,
@@ -425,10 +464,9 @@ export default class DropboxConfiguration extends Component {
 
         <div className="tab-content">
           <div>
-
             <div className="kintoneplugin-row kintoneplugin-flex ">
               <div>
-              <Label text="Dropbox App Key" isRequired={false} />
+                <Label text="Dropbox App Key" isRequired={false} />
                 <div className="input-config">
                   <Text
                     value={dropboxAppKey}
@@ -444,7 +482,7 @@ export default class DropboxConfiguration extends Component {
                   className="kintoneplugin-button-dialog-cancel btn-get-members"
                   onClick={this.handleClickValidateAcessToken}
                 >
-                  Validate access token
+                  Re-authenticate dropbox
                 </button>
               </div>
             </div>

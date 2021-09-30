@@ -12,7 +12,7 @@ class PluginSettings extends Component {
     this.state = props.config;
   }
 
-  setPluginConfig(newConfigs: any) {
+  setPluginConfig(newConfigs: any, callback=function(){}) {
     Object.keys(newConfigs).forEach((key) => {
       if (!newConfigs[key] == null || newConfigs[key] == undefined) {
         newConfigs[key] = "";
@@ -25,6 +25,7 @@ class PluginSettings extends Component {
     const currentConfig = kintone.plugin.app.getConfig(pluginId);
     newConfigs = Object.assign(currentConfig, newConfigs);
     kintone.plugin.app.setConfig(newConfigs, () => {
+      callback()
       return false;
     });
   }

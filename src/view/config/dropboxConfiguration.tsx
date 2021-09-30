@@ -367,24 +367,28 @@ export default class DropboxConfiguration extends Component {
         result: { access_token, refresh_token },
       } = response;
       await this.dbx.auth.checkAndRefreshAccessToken();
-      this.setState({ accessToken: access_token, refreshToken: refresh_token });
-      this.props.setPluginConfig(
-        {
-          accessToken: this.state.accessToken,
-          refreshToken: this.state.refreshToken,
-          createOrSelectExistingFolder: "",
-          dropboxAppKey: dropboxAppKey,
-          dropbox_configuration_app_id: dropbox_configuration_app_id,
-          folderName: "",
-          isBusinessAccount: "",
-          isValidAccessToken: "",
-          selectedField: "",
-          selectedFolderId: "",
-          selectedFolderPathLower: "",
-        },
-        () => {}
-      );
-      window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
+      this.setState({
+        accessToken: access_token, refreshToken: refresh_token
+      }, () => {
+        this.props.setPluginConfig(
+          {
+            accessToken: this.state.accessToken,
+            refreshToken: this.state.refreshToken,
+            createOrSelectExistingFolder: "",
+            dropboxAppKey: dropboxAppKey,
+            dropbox_configuration_app_id: dropbox_configuration_app_id,
+            folderName: "",
+            isBusinessAccount: "",
+            isValidAccessToken: "",
+            selectedField: "",
+            selectedFolderId: "",
+            selectedFolderPathLower: "",
+          },
+          () => {
+            window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
+          }
+        );
+      });
     }
   }
 
@@ -475,7 +479,7 @@ export default class DropboxConfiguration extends Component {
                   className="kintoneplugin-button-dialog-cancel btn-get-members"
                   onClick={this.handleClickValidateAcessToken}
                 >
-                  Re-authenticate dropbox
+                  Authenticate dropbox
                 </button>
               </div>
             </div>

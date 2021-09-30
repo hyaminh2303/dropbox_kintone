@@ -76,12 +76,3 @@ export const validateDropboxToken = async (
 
   return result;
 };
-
-export const isBusinessAccount = async (accessToken: string) => {
-  const result: any = await validateDropboxToken(
-    this.props.config.accessToken,
-    this.props.config.refreshToken,
-    this.props.config.dropboxAppKey
-  );
-  return result["status"] == "businessAccount";
-};

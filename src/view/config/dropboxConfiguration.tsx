@@ -76,11 +76,8 @@ export default class DropboxConfiguration extends Component {
 
   async handleClickSaveButton() {
     const {
-      accessToken,
-      refreshToken,
       selectedField,
       isBusinessAccount,
-      selectedFolderId,
       dropboxAppKey,
       dropbox_configuration_app_id,
       folderName,
@@ -121,11 +118,10 @@ export default class DropboxConfiguration extends Component {
   }
 
   async validateDropboxAccessToken() {
-    const configRefeshtoken = this.props.config.refreshToken;
     const { accessToken, refreshToken, dropboxAppKey } = this.state;
     const result: any = await validateDropboxToken(
       accessToken,
-      !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      refreshToken,
       dropboxAppKey
     );
     if (result["status"] == "invalidKey") {
@@ -159,14 +155,13 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleChangeMember(member: any) {
-    const configRefeshtoken = this.props.config.refreshToken;
     const { accessToken, refreshToken, dropboxAppKey } = this.state;
     this.setState({ isBlockUI: true });
 
     const existingFoldersList = await businessAccHelper.getExistingFoldersList(
       member.value,
       accessToken,
-      !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      refreshToken,
       dropboxAppKey
     );
 
@@ -178,30 +173,13 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleClickValidateAcessToken() {
-    const { dropboxAppKey, isBusinessAccount, dropbox_configuration_app_id } =
-      this.state;
+    const { dropboxAppKey, dropbox_configuration_app_id } = this.state;
     if (dropboxAppKey === "" || dropbox_configuration_app_id === "") {
       showNotificationError(
         "Dropbox App Key and Dropbox information app ID are requied!"
       );
     } else {
       // if not business account
-      this.props.setPluginConfig(
-        {
-          accessToken: "",
-          refreshToken: "",
-          createOrSelectExistingFolder: "",
-          dropboxAppKey: dropboxAppKey,
-          dropbox_configuration_app_id: dropbox_configuration_app_id,
-          folderName: "",
-          isBusinessAccount: "",
-          isValidAccessToken: "",
-          selectedField: "",
-          selectedFolderId: "",
-          selectedFolderPathLower: "",
-        },
-        () => {}
-      );
       const dbx = new Dropbox({ clientId: dropboxAppKey });
       const authUrl = await dbx.auth.getAuthenticationUrl(
         window.location.href,
@@ -222,7 +200,6 @@ export default class DropboxConfiguration extends Component {
 
   async handleLogicsAfterMounted() {
     // Get Root Folder
-    const configRefeshtoken = this.props.config.refreshToken;
     const {
       dropbox_configuration_app_id,
       accessToken,
@@ -270,7 +247,7 @@ export default class DropboxConfiguration extends Component {
         accessToken,
         this.state.memberId,
         dropboxFolderId,
-        !!configRefeshtoken ? configRefeshtoken : refreshToken,
+        refreshToken,
         dropboxAppKey
       );
     } else {
@@ -309,7 +286,6 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleLogicsForValidateAccessToken() {
-    const configRefeshtoken = this.props.config.refreshToken;
     const { accessToken, memberId, refreshToken, dropboxAppKey } = this.state;
     await this.validateDropboxAccessToken();
 
@@ -319,7 +295,7 @@ export default class DropboxConfiguration extends Component {
 
     this.dbx = new Dropbox({
       accessToken: accessToken,
-      refreshToken: !!configRefeshtoken ? configRefeshtoken : refreshToken,
+      refreshToken: refreshToken,
       clientId: dropboxAppKey,
     });
     await this.dbx.auth.checkAndRefreshAccessToken();
@@ -339,7 +315,7 @@ export default class DropboxConfiguration extends Component {
         const listFolders = await businessAccHelper.getExistingFoldersList(
           memberId,
           accessToken,
-          !!configRefeshtoken ? configRefeshtoken : refreshToken,
+          refreshToken,
           dropboxAppKey
         );
 
@@ -365,7 +341,7 @@ export default class DropboxConfiguration extends Component {
   }
 
   async getAcessTokenFromToCode() {
-    const { dropboxAppKey } = this.state;
+    const { dropboxAppKey, dropbox_configuration_app_id } = this.state;
     this.dbx = new Dropbox({ clientId: dropboxAppKey });
     this.dbx.auth.setCodeVerifier(
       window.sessionStorage.getItem("codeVerifier")
@@ -392,6 +368,23 @@ export default class DropboxConfiguration extends Component {
       } = response;
       await this.dbx.auth.checkAndRefreshAccessToken();
       this.setState({ accessToken: access_token, refreshToken: refresh_token });
+      this.props.setPluginConfig(
+        {
+          accessToken: this.state.accessToken,
+          refreshToken: this.state.refreshToken,
+          createOrSelectExistingFolder: "",
+          dropboxAppKey: dropboxAppKey,
+          dropbox_configuration_app_id: dropbox_configuration_app_id,
+          folderName: "",
+          isBusinessAccount: "",
+          isValidAccessToken: "",
+          selectedField: "",
+          selectedFolderId: "",
+          selectedFolderPathLower: "",
+        },
+        () => {}
+      );
+      window.location.replace(`?pluginId=${urlParams.get("pluginId")}`);
     }
   }
 
@@ -409,6 +402,7 @@ export default class DropboxConfiguration extends Component {
     this.setState(
       {
         accessToken: this.props.accessToken || "",
+        refreshToken: this.props.refreshToken || "",
         selectedField: this.props.selectedField || "",
         dropbox_configuration_app_id:
           this.props.dropbox_configuration_app_id || "",
@@ -439,7 +433,6 @@ export default class DropboxConfiguration extends Component {
   render() {
     const {
       formFields,
-      accessToken,
       folderName,
       selectedField,
       dropbox_configuration_app_id,

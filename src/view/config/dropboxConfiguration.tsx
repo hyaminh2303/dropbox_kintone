@@ -179,7 +179,24 @@ export default class DropboxConfiguration extends Component {
         "Dropbox App Key and Dropbox information app ID are requied!"
       );
     } else {
-      // if not business account
+      // save config to keep dropbox key and dropbox_configuration_app_id after logged in dropbox
+      this.props.setPluginConfig(
+        {
+          accessToken: "",
+          refreshToken: "",
+          createOrSelectExistingFolder: "",
+          dropboxAppKey: dropboxAppKey,
+          dropbox_configuration_app_id: dropbox_configuration_app_id,
+          folderName: "",
+          isBusinessAccount: "",
+          isValidAccessToken: "",
+          selectedField: "",
+          selectedFolderId: "",
+          selectedFolderPathLower: "",
+        },
+        () => {}
+      );
+
       const dbx = new Dropbox({ clientId: dropboxAppKey });
       const authUrl = await dbx.auth.getAuthenticationUrl(
         window.location.href,

@@ -133,7 +133,8 @@ export const saveConfigurations = async (
   } = params;
   const rootFolder = "";
 
-  dbx.selectUser = `${memberId}`;
+  dbx.selectAdmin = `${memberId}`;
+  // dbx.selectUser = `${memberId}`;
   dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${selectedNamespaceId}"}`;
   const createFolderResponse = await findOrCreateRootFolder(
     params,

@@ -216,7 +216,8 @@ export default class RecordDetail extends Component {
     }
 
     if (this.state.isBusinessAccount) {
-      this.dbx.selectUser = `${config.memberId}`;
+      // this.dbx.selectUser = `${config.memberId}`;
+      this.dbx.selectAdmin = `${config.memberId}`;
       this.dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${rootConfigurationRecord.namespace_id.value}"}`;
     }
 

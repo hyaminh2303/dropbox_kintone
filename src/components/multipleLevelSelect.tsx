@@ -69,7 +69,8 @@ export default class MultipleLevelSelect extends React.Component {
       const { memberId, isBusinessAccount, dbx, parentFolders } = this.props;
 
       if (isBusinessAccount) {
-        dbx.selectUser = `${memberId}`;
+        dbx.selectAdmin = `${memberId}`;
+        // dbx.selectUser = `${memberId}`;
         dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${item.namespaceId}"}`;
       }
 

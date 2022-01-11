@@ -94,11 +94,23 @@ export default class RecordDetail extends Component {
       dropboxAppKey
     );
 
+    // DEBUG HTTP
+    console.log("DEBUG HTTP REQUEST: validating access token")
+
     if (result["status"] == "invalidKey") {
+      // DEBUG HTTP
+      console.log("DEBUG HTTP REQUEST: Invalid access token")
+
       showNotificationError("Invalid access token, please generate a new one.");
     } else if (result["status"] == "unauthorized") {
+
+      // DEBUG HTTP
+      console.log("DEBUG HTTP REQUEST: Invalid access token")
       showNotificationError("Invalid access token, please generate a new one.");
     } else if (result["status"] == "appPermissionError") {
+      // DEBUG HTTP
+      console.log("DEBUG HTTP REQUEST: Invalid access token")
+
       await setStateAsync(
         {
           isValidAccessToken: false,
@@ -106,6 +118,9 @@ export default class RecordDetail extends Component {
         this
       );
     } else if (result["status"] == "businessAccount") {
+      // DEBUG HTTP
+      console.log("DEBUG HTTP REQUEST: Valid access token, this is business acc")
+
       await setStateAsync(
         {
           isBusinessAccount: true,
@@ -114,6 +129,8 @@ export default class RecordDetail extends Component {
         this
       );
     } else if (result["status"] == "individualAccount") {
+      console.log("DEBUG HTTP REQUEST: Valid access token, this is individual acc")
+
       await setStateAsync(
         {
           isBusinessAccount: false,
@@ -151,6 +168,9 @@ export default class RecordDetail extends Component {
     }
 
     const rootPath = response["path"];
+
+    // DEBUG HTTP
+    console.log("DEBUG HTTP REQUEST: root path is ", rootPath)
 
     this.setState(
       {

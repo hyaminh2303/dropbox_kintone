@@ -14,7 +14,15 @@ export const validateDropboxToken = async (
     refreshToken: refreshToken,
     clientId: dropboxAppKey,
   });
+
+  // DEBUG HTTP
+  console.log("DEBUG HTTP REQUEST: refreshing access token")
+
   await dbx.auth.checkAndRefreshAccessToken();
+  // DEBUG HTTP
+  console.log("DEBUG HTTP REQUEST: refresh_token is ", refreshToken)
+  console.log("DEBUG HTTP REQUEST: access_token is ", dbx.auth.getAccessToken())
+
   const filesListFolderResponse: any = await dbx
     .filesListFolder({ path: "" })
     .catch((errorResp: any) => {

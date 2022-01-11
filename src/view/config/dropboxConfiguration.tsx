@@ -158,6 +158,9 @@ export default class DropboxConfiguration extends Component {
     const { accessToken, refreshToken, dropboxAppKey } = this.state;
     this.setState({ isBlockUI: true });
 
+    console.log("DEBUG HTTP REQUEST: changed member")
+    console.log("DEBUG HTTP REQUEST: selected member id is: ", member.value)
+
     const existingFoldersList = await businessAccHelper.getExistingFoldersList(
       member.value,
       accessToken,

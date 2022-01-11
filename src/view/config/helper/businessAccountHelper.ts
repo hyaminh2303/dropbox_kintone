@@ -58,10 +58,17 @@ export const getExistingFoldersList = async (
   });
   await dbx.auth.checkAndRefreshAccessToken();
 
+  // DEBUG HTTP
+  console.log("DEBUG HTTP REQUEST: refresh_token is ", refreshToken)
+  console.log("DEBUG HTTP REQUEST: access_token is ", dbx.auth.getAccessToken())
+
   try {
     const teamNamespacesListResult = await dbx.teamNamespacesList({
       limit: 1000,
     });
+
+    console.log("DEBUG HTTP REQUEST: all name space ", teamNamespacesListResult)
+
     const namespace = find(
       teamNamespacesListResult.result.namespaces,
       (namespace) => {
@@ -69,10 +76,16 @@ export const getExistingFoldersList = async (
       }
     ) || { namespace_id: "" };
 
-    dbx.selectUser = memberId;
+    console.log("DEBUG HTTP REQUEST: finding team_folder")
+    console.log("DEBUG HTTP REQUEST: found a namespace with type is team folder ", namespace)
+
+    // dbx.selectUser = memberId;
+    dbx.selectAdmin = memberId;
     dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${namespace["namespace_id"]}"}`;
 
+    console.log("DEBUG HTTP REQUEST: getting list folder in root path of the namespace", namespace)
     const foldersResponse = await dbx.filesListFolder({ path: "" });
+    console.log("DEBUG HTTP REQUEST: foldersResponse ", foldersResponse)
 
     const folders = foldersResponse.result.entries
       .filter((entry) => {

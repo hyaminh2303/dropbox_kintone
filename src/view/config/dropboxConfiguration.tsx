@@ -29,6 +29,7 @@ export default class DropboxConfiguration extends Component {
     super(props);
     this.onCancel = this.onCancel.bind(this);
     this.handleClickSaveButton = this.handleClickSaveButton.bind(this);
+    this.getNameSpaceFromDropbox = this.getNameSpaceFromDropbox.bind(this);
     this.validateDropboxAccessToken =
       this.validateDropboxAccessToken.bind(this);
     this.handleClickValidateAcessToken =
@@ -53,6 +54,7 @@ export default class DropboxConfiguration extends Component {
       selectedFolderPathLower: "",
       selectedNamespaceId: "",
       selectedNamespaceName: "",
+      namespaceIdForFolder: "",
       isBlockUI: false,
       isBusinessAccount: false,
       createOrSelectExistingFolderOptions: [
@@ -67,6 +69,7 @@ export default class DropboxConfiguration extends Component {
           isDisabled: false,
         },
       ],
+      itemsNameSpace: []
     };
   }
 
@@ -155,7 +158,7 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleChangeMember(member: any) {
-    const { accessToken, refreshToken, dropboxAppKey } = this.state;
+    const { accessToken, refreshToken, dropboxAppKey, namespaceIdForFolder } = this.state;
     this.setState({ isBlockUI: true });
 
     console.log("DEBUG HTTP REQUEST: changed member")
@@ -165,7 +168,8 @@ export default class DropboxConfiguration extends Component {
       member.value,
       accessToken,
       refreshToken,
-      dropboxAppKey
+      dropboxAppKey,
+      namespaceIdForFolder
     );
 
     this.setState({
@@ -306,7 +310,7 @@ export default class DropboxConfiguration extends Component {
   }
 
   async handleLogicsForValidateAccessToken() {
-    const { accessToken, memberId, refreshToken, dropboxAppKey } = this.state;
+    const { accessToken, memberId, refreshToken, dropboxAppKey, namespaceIdForFolder } = this.state;
     await this.validateDropboxAccessToken();
 
     if (!this.state.isValidAccessToken) {
@@ -336,7 +340,8 @@ export default class DropboxConfiguration extends Component {
           memberId,
           accessToken,
           refreshToken,
-          dropboxAppKey
+          dropboxAppKey,
+          namespaceIdForFolder
         );
 
         await setStateAsync(
@@ -412,6 +417,42 @@ export default class DropboxConfiguration extends Component {
     }
   }
 
+  async getNameSpaceFromDropbox() {
+    let nameSpace = [];
+    const teamNamespacesListResult = await this.dbx.teamNamespacesList({
+      limit: 1000,
+    });
+
+    teamNamespacesListResult.result.namespaces.map(value => {
+      if(value.namespace_type[".tag"] == "team_folder") {
+        nameSpace.push({
+          label: value.name,
+          value: value.namespace_id,
+        })
+      }
+    })
+    this.setState({itemsNameSpace: nameSpace})
+    return nameSpace
+  }
+
+  async handleChangeNameSpace(value) {
+    const { accessToken, refreshToken, dropboxAppKey, memberId } = this.state;
+    this.setState({ isBlockUI: true });
+    const existingFoldersList = await businessAccHelper.getExistingFoldersList(
+      memberId,
+      accessToken,
+      refreshToken,
+      dropboxAppKey,
+      value.value
+    );
+
+    this.setState({
+      existingFoldersList: existingFoldersList,
+      namespaceIdForFolder: value.value,
+      isBlockUI: false
+    });
+  }
+
   UNSAFE_componentWillMount() {
     let formFields: any = [];
 
@@ -434,6 +475,7 @@ export default class DropboxConfiguration extends Component {
         selectedFolderId: this.props.selectedFolderId || "",
         selectedFolderPathLower: this.props.selectedFolderPathLower || "",
         selectedNamespaceId: this.props.selectedNamespaceId || "",
+        namespaceIdForFolder: this.props.namespaceIdForFolder || "",
         selectedNamespaceName: this.props.selectedNamespaceName || "",
         createOrSelectExistingFolder:
           this.props.createOrSelectExistingFolder || "",
@@ -449,6 +491,9 @@ export default class DropboxConfiguration extends Component {
         this.setState({ isBlockUI: true });
         await this.getAcessTokenFromToCode();
         await this.handleLogicsAfterMounted();
+        if(this.state.isBusinessAccount) {
+          await this.getNameSpaceFromDropbox();
+        }
         this.setState({ isBlockUI: false });
       }
     );
@@ -471,6 +516,8 @@ export default class DropboxConfiguration extends Component {
       selectedNamespaceName,
       dropboxAppKey,
       isBlockUI,
+      itemsNameSpace,
+      namespaceIdForFolder
     } = this.state;
 
     let { selectedFolderPathLower } = this.state;
@@ -517,6 +564,22 @@ export default class DropboxConfiguration extends Component {
                 </div>
               </div>
             )}
+            {
+              isBusinessAccount ?
+              <div className="kintoneplugin-row">
+                <Label text="Select namespace setting" />
+                <div className="input-config">
+                  <Select
+                    value={find(itemsNameSpace, { value: namespaceIdForFolder })}
+                    options={itemsNameSpace}
+                    className="react-select-dropdown"
+                    onChange={(value) =>
+                      this.handleChangeNameSpace(value)
+                    }
+                  />
+                </div>
+              </div> : null
+            }
 
             <div className="kintoneplugin-row">
               <Label text="Dropbox information app ID" isRequired={false} />

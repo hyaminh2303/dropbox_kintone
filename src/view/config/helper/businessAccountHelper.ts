@@ -49,7 +49,8 @@ export const getExistingFoldersList = async (
   memberId: string,
   accessToken: string,
   refreshToken: string,
-  dropboxAppKey: string
+  dropboxAppKey: string,
+  namespaceId: string
 ) => {
   let dbx = new Dropbox({
     accessToken: accessToken,
@@ -63,28 +64,19 @@ export const getExistingFoldersList = async (
   console.log("DEBUG HTTP REQUEST: access_token is ", dbx.auth.getAccessToken())
 
   try {
-    const teamNamespacesListResult = await dbx.teamNamespacesList({
-      limit: 1000,
-    });
-
-    console.log("DEBUG HTTP REQUEST: all name space ", teamNamespacesListResult)
-
-    const namespace = find(
-      teamNamespacesListResult.result.namespaces,
-      (namespace) => {
-        return namespace.namespace_type[".tag"] == "team_folder";
-      }
-    ) || { namespace_id: "" };
-
     console.log("DEBUG HTTP REQUEST: finding team_folder")
-    console.log("DEBUG HTTP REQUEST: found a namespace with type is team folder ", namespace)
+    console.log("DEBUG HTTP REQUEST: found a namespace id ", namespaceId)
 
-    // dbx.selectUser = memberId;
-    dbx.selectAdmin = memberId;
-    dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${namespace["namespace_id"]}"}`;
+    dbx.selectUser = memberId;
+    // dbx.selectAdmin = memberId;
+    dbx.pathRoot = `{".tag": "namespace_id", "namespace_id": "${namespaceId}"}`;
 
-    console.log("DEBUG HTTP REQUEST: getting list folder in root path of the namespace", namespace)
-    const foldersResponse = await dbx.filesListFolder({ path: "" });
+    const foldersResponse = await dbx.filesListFolder({ path: "" }).catch((error: any) => {
+      if(!!error.error["error_summary"]) {
+        showNotificationError("Please choose again because the user doesn't have permission");
+        return
+      }
+    });
     console.log("DEBUG HTTP REQUEST: foldersResponse ", foldersResponse)
 
     const folders = foldersResponse.result.entries

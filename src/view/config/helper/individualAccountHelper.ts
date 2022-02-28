@@ -74,7 +74,16 @@ export const saveConfigurations = async (params: any, onSaveConfigurationSuccess
   });
 
   if (createFolderResponse["actionType"] == "create") {
-    await dbx.filesCreateFolderBatch({ paths: childFolderPaths });
+    let createFoldersJob = await dbx.filesCreateFolderBatch({ paths: childFolderPaths, force_async: true });
+
+    let createFoldersStatus;
+    const filesCreateFolderBatchCheck = async () => {
+      createFoldersStatus = await dbx.filesCreateFolderBatchCheck({ async_job_id: createFoldersJob.result.async_job_id });
+      if (createFoldersStatus.result['.tag'] == "in_progress") {
+        await filesCreateFolderBatchCheck()
+      }
+    }
+    await filesCreateFolderBatchCheck()
     // Retrieve all folder in this root path for finding and creating configuration record.
     // if we use the response from filesCreateFolderBatch then cannot get folder name if failed on creation
     const filesListFolderResponse = await dbx.filesListFolder({
